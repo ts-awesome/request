@@ -7,7 +7,7 @@ before_script:
 
 build:
   stage: build
-  image: node:8
+  image: node:12
   only:
   - master
   - develop
@@ -16,7 +16,7 @@ build:
 
 publish:
   stage: publish
-  image: node:8
+  image: node:12
   only:
   - tags
   script:
