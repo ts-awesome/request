@@ -21,6 +21,8 @@ import request = require('request');
 export class HttpTransport implements IHttpTransport {
   constructor(
     protected logger?: ILogger,
+    protected baseUrl?: string,
+    protected authentication?: string,
   ) {
   }
 
@@ -157,11 +159,16 @@ export class HttpTransport implements IHttpTransport {
   }
 
   protected resolveRelativeUrl(method: HttpMethod, uri: string): string {
-    throw new Error(`Unable to resolve relative URL ${method} ${uri}. Please override resolveRelativeUrl() method`);
+    if (!this.baseUrl) {
+      throw new Error(`Unable to resolve relative URL ${method} ${uri}. Please override resolveRelativeUrl() method`);
+    }
+
+    return `${this.baseUrl}${uri}`;
   }
 
   protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
-    return {...headers};
+    const auth = this.authentication ? {Authentication: this.authentication!} : undefined;
+    return {...auth, ...headers};
   }
 
   private _requestParams(method: HttpMethod, uri: string, options: CoreOptions): [string, request.CoreOptions] {
