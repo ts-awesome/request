@@ -1,0 +1,29 @@
+{
+  "name": "@viatsyshyn/ts-request",
+  "version": "0.0.0",
+  "description": "TypeScript Http Request",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.1.13",
+    "request": "^2.88.0"
+  },
+  "peerDependencies": {
+    "inversify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/inversify": "^2.0.0",
+    "@types/node": "^13.1.6",
+    "@types/reflect-metadata": "^0.1.0",
+    "@types/request": "^2.48.0",
+    "inversify": "^5.0.0",
+    "jest": "^24.9.0",
+    "typescript": "^3.7.4"
+  },
+  "author": "Volodymyr Iatsyshyn <viatsyshyn@gmail.com>",
+  "license": "ISC"
+}
