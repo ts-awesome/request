@@ -8,10 +8,21 @@ describe('download', () => {
 
   beforeAll(done => {
     server = http.createServer((req, res) => {
-      if (req.method === 'POST') {
+      if (req.method === 'PATCH') {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', '20000');
+        res.write('BROKEN-PDF');
+        res.end();
+      } else if (req.method === 'POST') {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.write(JSON.stringify({"ok": "ok", "message": "error"}));
+        res.end();
+      } else if (req.method === 'PUT') {
+        res.statusCode = 200;
+        res.setHeader('Digest', 'sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=');
+        res.write('BROKEN-PDF');
         res.end();
       } else {
         res.setHeader('Content-Type', 'application/json');
@@ -67,6 +78,58 @@ describe('download', () => {
 
       const data = fs.readFileSync(name).toString();
       expect(data).toBe('');
+    } finally {
+      try {
+        fs.unlinkSync(name);
+      } catch (e) {
+        // ignored
+      }
+    }
+  });
+
+  it('downloads broken pdf', async () => {
+    const http = new HttpTransport();
+    const name = './' + Math.random().toString(36);
+
+    const dest = fs.createWriteStream(name);
+
+    try {
+      const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest});
+      fail(`Expected to throw`);
+    } catch (e) {
+      expect(e.name).toBe('RequestError');
+      expect(e.message).toBe('Broken connection');
+
+      await new Promise(r => setTimeout(r, 500));
+
+      const data = fs.readFileSync(name).toString();
+      expect(data).toBe('BROKEN-PDF');
+    } finally {
+      try {
+        fs.unlinkSync(name);
+      } catch (e) {
+        // ignored
+      }
+    }
+  });
+
+  it('downloads failed digest', async () => {
+    const http = new HttpTransport();
+    const name = './' + Math.random().toString(36);
+
+    const dest = fs.createWriteStream(name);
+
+    try {
+      const r = await http.download('PUT', `http://127.0.0.1:${port}`, {dest});
+      fail(`Expected to throw`);
+    } catch (e) {
+      expect(e.name).toBe('RequestError');
+      expect(e.message).toBe('Digest mismatch');
+
+      await new Promise(r => setTimeout(r, 500));
+
+      const data = fs.readFileSync(name).toString();
+      expect(data).toBe('BROKEN-PDF');
     } finally {
       try {
         fs.unlinkSync(name);

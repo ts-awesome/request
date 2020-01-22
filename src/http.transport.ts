@@ -17,6 +17,7 @@ import {
 import {RestoreSymbol} from "./symbols";
 
 import request = require('request');
+import crypto = require('crypto');
 
 export class HttpTransport implements IHttpTransport {
   constructor(
@@ -73,6 +74,8 @@ export class HttpTransport implements IHttpTransport {
       throw new Error(`dest is required`);
     }
 
+    let hash: crypto.Hash | null = null;
+
     const errorCaptureStream = new CaptureStream();
     const progressStream = new ProgressStream<TransferProgress>();
     progress?.next({current: null, total: 0});
@@ -87,6 +90,11 @@ export class HttpTransport implements IHttpTransport {
             resolve(response);
             progress?.complete();
           } else {
+            if (response.headers['digest']) {
+              const [alg] = response.headers['digest'].split('=');
+              hash = crypto.createHash(alg.replace('-', ''));
+              errorCaptureStream.digest(hash);
+            }
             res = response;
             progressStream.total = parseInt(response.headers['content-length'] || '0', 10);
             progress?.next({current: 0, total: progressStream.total});
@@ -105,12 +113,28 @@ export class HttpTransport implements IHttpTransport {
         .pipe(dest);
     });
 
-    if (progress) {
-      progressStream.on('progress', (event: TransferProgress) => progress?.next(event));
-    }
+    progressStream.on('progress', (event: TransferProgress) => progress?.next(event));
 
     const resolved = await response;
     resolved.body = errorCaptureStream.content;
+
+    if (resolved.statusCode === 200 && progressStream.total > progressStream.progressed) {
+      throw new RequestError(`Broken connection`, 'RequestError', 0, {
+        total: progressStream.total,
+        progressed: progressStream.progressed,
+      })
+    }
+
+    if (resolved.statusCode === 200 && hash != null && resolved.headers['digest']) {
+      const [, expected] = resolved.headers['digest'].split('=');
+      const computed = hash.digest('base64');
+      if (expected !== computed) {
+        throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
+          expected,
+          computed,
+        })
+      }
+    }
 
     return this._processResponse(method, uri, resolved, Model);
   }
@@ -233,10 +257,10 @@ export class HttpTransport implements IHttpTransport {
     let message = statusMessage;
     let code = statusCode;
     this.resolveError(message, code, body);
-    if (typeof body === 'object') {
+    if (body && typeof body === 'object') {
       this.resolveError(message, code, body);
 
-      const {code: jsonCode = code, error: jsonError = message, name, data, ...rest} = body;
+      const {code: jsonCode = code, error: jsonError = message, name, data, ...rest} = body ?? {};
       throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${code}: ${message}${Object.keys(rest).length ? '\n' + JSON.stringify(rest) : ''}`)
     }
 

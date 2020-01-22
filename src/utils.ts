@@ -10,6 +10,9 @@ export interface IProgressStream<T> {
 export class ProgressStream<T=any> extends Transform implements IProgressStream<T> {
 
   private current = 0;
+  public get progressed() {
+    return this.current;
+  }
 
   constructor(
     public total = 0,
@@ -24,6 +27,9 @@ export class ProgressStream<T=any> extends Transform implements IProgressStream<
   }
 }
 
+interface Algorithm {
+  update(data: Buffer | string): void;
+}
 
 export class CaptureStream extends Transform {
 
@@ -31,8 +37,8 @@ export class CaptureStream extends Transform {
     return this.captured?.join('') ?? null;
   }
 
+  private algorithm: Algorithm | null = null;
   private captured: any[] | null = null;
-
 
   constructor(
     public total = 0,
@@ -40,16 +46,21 @@ export class CaptureStream extends Transform {
     super();
   }
 
-  public _transform(chunk: any, encoding: string, callback: (error?: Error, data?: any) => void): void {
+  public _transform(chunk: Buffer | string, encoding: string, callback: (error?: Error, data?: any) => void): void {
     if (this.captured) {
       this.captured.push(chunk.toString());
-      chunk = undefined;
+      callback(undefined, undefined);
+    } else {
+      this.algorithm?.update(chunk);
+      callback(undefined, chunk);
     }
-
-    callback(undefined, chunk);
   }
 
   public capture() {
     this.captured = [];
+  }
+
+  public digest(algorithm: Algorithm) {
+    this.algorithm = algorithm;
   }
 }
