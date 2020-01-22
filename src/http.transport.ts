@@ -17,7 +17,7 @@ import {
 import {RestoreSymbol} from "./symbols";
 
 import request = require('request');
-import crypto = require('crypto');
+import {Hash, createHash} from 'crypto';
 
 export class HttpTransport implements IHttpTransport {
   constructor(
@@ -74,7 +74,7 @@ export class HttpTransport implements IHttpTransport {
       throw new Error(`dest is required`);
     }
 
-    let hash: crypto.Hash | null = null;
+    let hash: Hash | undefined;
 
     const errorCaptureStream = new CaptureStream();
     const progressStream = new ProgressStream<TransferProgress>();
@@ -92,7 +92,7 @@ export class HttpTransport implements IHttpTransport {
           } else {
             if (response.headers['digest']) {
               const [alg] = response.headers['digest'].split('=');
-              hash = crypto.createHash(alg.replace('-', ''));
+              hash = createHash(alg.replace('-', ''));
               errorCaptureStream.digest(hash);
             }
             res = response;
@@ -125,7 +125,7 @@ export class HttpTransport implements IHttpTransport {
       })
     }
 
-    if (resolved.statusCode === 200 && hash != null && resolved.headers['digest']) {
+    if (resolved.statusCode === 200 && hash != null && typeof resolved.headers['digest'] === 'string') {
       const [, expected] = resolved.headers['digest'].split('=');
       const computed = hash.digest('base64');
       if (expected !== computed) {
