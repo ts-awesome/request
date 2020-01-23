@@ -118,21 +118,21 @@ export class HttpTransport implements IHttpTransport {
     const resolved = await response;
     resolved.body = errorCaptureStream.content;
 
-    if (resolved.statusCode === 200 && progressStream.total > progressStream.progressed) {
-      throw new RequestError(`Broken connection`, 'RequestError', 0, {
-        total: progressStream.total,
-        progressed: progressStream.progressed,
-      })
-    }
-
-    if (resolved.statusCode === 200 && hash != null && typeof resolved.headers['digest'] === 'string') {
-      const [, ...parts] = resolved.headers['digest'].split('=');
-      const expected = parts.join('=');
-      const computed = hash.digest('base64');
-      if (expected !== computed) {
-        throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
-          expected,
-          computed,
+    if (resolved.statusCode === 200) {
+      if (hash != null && typeof resolved.headers['digest'] === 'string') {
+        const [, ...parts] = resolved.headers['digest'].split('=');
+        const expected = parts.join('=');
+        const computed = hash.digest('base64');
+        if (expected !== computed) {
+          throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
+            expected,
+            computed,
+          })
+        }
+      } else if (progressStream.total > progressStream.progressed) {
+        throw new RequestError(`Broken connection`, 'RequestError', 0, {
+          total: progressStream.total,
+          progressed: progressStream.progressed,
         })
       }
     }
