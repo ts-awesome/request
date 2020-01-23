@@ -126,7 +126,8 @@ export class HttpTransport implements IHttpTransport {
     }
 
     if (resolved.statusCode === 200 && hash != null && typeof resolved.headers['digest'] === 'string') {
-      const [, expected] = resolved.headers['digest'].split('=');
+      const [, ...parts] = resolved.headers['digest'].split('=');
+      const expected = parts.join('=');
       const computed = hash.digest('base64');
       if (expected !== computed) {
         throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
