@@ -31,7 +31,7 @@ export interface CoreOptions {
   host?: string;
   port?: number;
   method?: string;
-  headers?: Headers;
+  headers?: Record<string, any>;
   body?: any;
   family?: 4 | 6;
   followAllRedirects?: boolean;

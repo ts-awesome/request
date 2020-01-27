@@ -127,7 +127,7 @@ export class HttpTransport implements IHttpTransport {
           throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
             expected,
             computed,
-          })
+          });
         }
       } else if (progressStream.total > progressStream.progressed) {
         throw new RequestError(`Broken connection`, 'RequestError', 0, {
@@ -155,6 +155,11 @@ export class HttpTransport implements IHttpTransport {
     progress?.next({current: 0, total: progressStream.total});
 
     const [_uri, _options] = this._requestParams(method, uri, options);
+
+    if (_options.headers['content-length'] == null && size != null) {
+      _options.headers['content-length'] = size;
+    }
+
     const response = new Promise<Response>((resolve, reject) => {
       let res: Response | null = null;
       request(_uri, _options)
@@ -192,25 +197,33 @@ export class HttpTransport implements IHttpTransport {
   }
 
   protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
-    const auth = this.authentication ? {Authentication: this.authentication!} : undefined;
-    return {...auth, ...headers};
+    const auth = this.authentication ? {authentication: this.authentication!} : undefined;
+    const merged = {...auth, ...headers};
+
+    const result = {};
+    for(let key of Object.keys(merged)) {
+      result[key.toLowerCase()] = merged[key];
+    }
+
+    return result;
   }
 
-  private _requestParams(method: HttpMethod, uri: string, options: CoreOptions): [string, request.CoreOptions] {
-    options = options || {};
-
+  private _requestParams(method: HttpMethod, uri: string, options: CoreOptions): [string, request.CoreOptions & {method: string, headers: Record<string, any>}] {
     method = method.toUpperCase() as any;
 
-    options.method = method.toUpperCase();
-    options.headers = this.resolveHeaders(method, uri, options.headers);
+    const opts = {
+      ...options,
+      method: method.toUpperCase(),
+      headers: this.resolveHeaders(method, uri, options?.headers ?? {}),
+    };
 
     if (!/^https?:\/\//gi.test(uri)) {
       uri = this.resolveRelativeUrl(method, uri);
     }
 
-    this.logger?.debug('Http', method, uri, JSON.stringify(options, null, 2));
+    this.logger?.debug('Http', method, uri, JSON.stringify(opts, null, 2));
 
-    return [uri, options];
+    return [uri, opts];
   }
 
   protected resolveError(statusMessage: string, statusCode: number, body: any): void {
