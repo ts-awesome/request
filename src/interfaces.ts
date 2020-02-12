@@ -1,4 +1,4 @@
-import {RestoreSymbol} from "./symbols";
+import {ETagSymbol, RestoreSymbol} from "./symbols";
 
 export interface TransferProgress {
   readonly total: number;
@@ -64,6 +64,11 @@ export interface ConstructorOf<T> {
   new (...args: any[]): T;
 }
 
+export interface WithEtagged {
+  etag?: string;
+  eTagged?: {[ETagSymbol]?: string}
+}
+
 export interface WithModel<T> {
   Model?: ConstructorOf<T> | Restorable<T>;
 }
@@ -82,14 +87,15 @@ export interface WithDestination {
 }
 
 export interface IHttpTransport {
-  get<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
+  get<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
   post<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
-  put<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
-  patch<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
-  delete<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
+  put<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
+  patch<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
+  delete<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
   head<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
 
-  request<T = any>(method: HttpMethod, uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
-  download<T = any>(method: HttpMethod, uri: string, options: CoreOptions & WithModel<ElementType<T>> & WithProgress & WithDestination): Promise<T>;
-  upload<T = any>(method: HttpMethod, uri: string, options: Omit<CoreOptions, 'body'> & WithModel<ElementType<T>> & WithProgress & WithSource): Promise<T>;
+  request<T = any>(method: HttpMethod, uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
+
+  download<T = any>(method: HttpMethod, uri: string, options: CoreOptions & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithDestination): Promise<T>;
+  upload<T = any>(method: HttpMethod, uri: string, options: Omit<CoreOptions, 'body'> & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithSource): Promise<T>;
 }

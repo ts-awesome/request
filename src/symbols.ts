@@ -1,4 +1,4 @@
-
+export const ETagSymbol = Symbol.for('ETag');
 export const RestoreSymbol = Symbol('restore');
 export const HttpTransportSymbol = Symbol.for('IHttpTransport');
 

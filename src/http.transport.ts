@@ -9,12 +9,12 @@ import {
   ILogger,
   Restorable,
   TransferProgress,
-  WithDestination,
+  WithDestination, WithEtagged,
   WithModel,
   WithProgress,
   WithSource,
 } from "./interfaces";
-import {RestoreSymbol} from "./symbols";
+import {RestoreSymbol, ETagSymbol} from "./symbols";
 
 import request = require('request');
 import {Hash, createHash} from 'crypto';
@@ -208,13 +208,18 @@ export class HttpTransport implements IHttpTransport {
     return result;
   }
 
-  private _requestParams(method: HttpMethod, uri: string, options: CoreOptions): [string, request.CoreOptions & {method: string, headers: Record<string, any>}] {
+  private _requestParams(method: HttpMethod, uri: string, options: CoreOptions & WithEtagged): [string, request.CoreOptions & {method: string, headers: Record<string, any>}] {
     method = method.toUpperCase() as any;
 
+    const {etag, eTagged, ...rest} = options;
+
     const opts = {
-      ...options,
+      ...rest,
       method: method.toUpperCase(),
-      headers: this.resolveHeaders(method, uri, options?.headers ?? {}),
+      headers: {
+        ...resolveEtagged(method, options),
+        ...this.resolveHeaders(method, uri, options?.headers ?? {}),
+      },
     };
 
     if (!/^https?:\/\//gi.test(uri)) {
@@ -233,7 +238,7 @@ export class HttpTransport implements IHttpTransport {
     }
   }
 
-  protected resolveModel<T>(raw: any, Model?: ConstructorOf<ElementType<T>> | Restorable<ElementType<T>>): T {
+  protected resolveModel<T>(raw: any, Model?: ConstructorOf<ElementType<T>> | Restorable<ElementType<T>>, _etag?: string): T {
     if (!Model) {
       return raw as T;
     }
@@ -263,7 +268,9 @@ export class HttpTransport implements IHttpTransport {
       : raw;
 
     if (statusCode >= 200 && statusCode < 300) {
-      return this.resolveModel(body, Model);
+      const etag = response.headers.etag;
+      const value = Array.isArray(etag) ? etag[0] : etag;
+      return addEtag(this.resolveModel(body, Model, value), value);
     }
 
     this.logger?.warn(`Http ${method.toUpperCase()} ${uri} failed ${statusCode}: ${statusMessage}\n${typeof raw === 'string' ? raw : JSON.stringify(raw)}`);
@@ -288,8 +295,29 @@ function _restore<T>(raw: any, Model: ConstructorOf<T> | Restorable<T>): T {
   }
 
   if (typeof raw === 'object') {
-    return Object.setPrototypeOf(raw, (Model as ConstructorOf<T>));
+    return Object.setPrototypeOf(raw, (Model as ConstructorOf<T>).prototype);
   }
 
   return raw as T;
 }
+
+function addEtag<T>(obj: T, etag?: string): T {
+  if (etag) {
+    Object.defineProperty(obj, ETagSymbol, etag);
+  }
+
+  return obj;
+}
+
+function resolveEtagged(method: HttpMethod, {etag, eTagged}: WithEtagged): {[key: string]: string} {
+  const result = {};
+  const value = etag ?? eTagged?.[ETagSymbol];
+  if (typeof value === 'string' && method === 'GET') {
+    result['If-None-Match'] = value.startsWith('"') ? value : JSON.stringify(value);
+  }
+  if (typeof value === 'string' && (method === 'PUT' || method === 'PATCH' || method === 'DELETE')) {
+    result['If-Match'] = value.startsWith('"') ? value : JSON.stringify(value);
+  }
+  return result;
+}
+
