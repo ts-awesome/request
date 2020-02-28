@@ -303,7 +303,7 @@ function _restore<T>(raw: any, Model: ConstructorOf<T> | Restorable<T>): T {
 
 function addEtag<T>(obj: T, etag?: string): T {
   if (etag) {
-    Object.defineProperty(obj, ETagSymbol, etag);
+    Object.defineProperty(obj, ETagSymbol, {value: etag});
   }
 
   return obj;
