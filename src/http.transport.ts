@@ -302,7 +302,7 @@ function _restore<T>(raw: any, Model: ConstructorOf<T> | Restorable<T>): T {
 }
 
 function addEtag<T>(obj: T, etag?: string): T {
-  if (etag && (Array.isArray(obj) || typeof obj === 'object')) {
+  if (etag && obj && (Array.isArray(obj) || typeof obj === 'object')) {
     Object.defineProperty(obj, ETagSymbol, {value: etag});
   }
 
