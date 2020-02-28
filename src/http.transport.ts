@@ -23,7 +23,7 @@ export class HttpTransport implements IHttpTransport {
   constructor(
     protected logger?: ILogger,
     protected baseUrl?: string,
-    protected authentication?: string,
+    protected authorization?: string,
   ) {
   }
 
@@ -197,7 +197,7 @@ export class HttpTransport implements IHttpTransport {
   }
 
   protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
-    const auth = this.authentication ? {authentication: this.authentication!} : undefined;
+    const auth = this.authorization ? {Authorization: this.authorization!} : undefined;
     const merged = {...auth, ...headers};
 
     const result = {};
