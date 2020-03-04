@@ -100,4 +100,4 @@ export interface IHttpTransport {
   upload<T = any>(method: HttpMethod, uri: string, options: Omit<CoreOptions, 'body'> & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithSource): Promise<T>;
 }
 
-export declare type TokenProvider = () => string;
+export declare type TokenProvider = () => string | null | undefined;

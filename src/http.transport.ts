@@ -198,13 +198,10 @@ export class HttpTransport implements IHttpTransport {
   }
 
   protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
-    const auth = this.authorization 
-      ? {
-          Authorization: typeof this.authorization === 'function'
-            ? this.authorization()
-            : this.authorization
-        }
-      : undefined;
+
+    const authorization = typeof this.authorization === 'function' ? this.authorization() : this.authorization;
+
+    const auth = authorization ? { Authorization: authorization } : undefined;
     const merged = {...auth, ...headers};
 
     const result = {};
