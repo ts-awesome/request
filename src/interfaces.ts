@@ -99,3 +99,5 @@ export interface IHttpTransport {
   download<T = any>(method: HttpMethod, uri: string, options: CoreOptions & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithDestination): Promise<T>;
   upload<T = any>(method: HttpMethod, uri: string, options: Omit<CoreOptions, 'body'> & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithSource): Promise<T>;
 }
+
+export declare type TokenProvider = () => string;

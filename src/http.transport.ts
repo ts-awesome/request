@@ -13,6 +13,7 @@ import {
   WithModel,
   WithProgress,
   WithSource,
+  TokenProvider
 } from "./interfaces";
 import {RestoreSymbol, ETagSymbol} from "./symbols";
 
@@ -23,7 +24,7 @@ export class HttpTransport implements IHttpTransport {
   constructor(
     protected logger?: ILogger,
     protected baseUrl?: string,
-    protected authorization?: string,
+    protected authorization?: string | TokenProvider,
   ) {
   }
 
@@ -197,7 +198,13 @@ export class HttpTransport implements IHttpTransport {
   }
 
   protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
-    const auth = this.authorization ? {Authorization: this.authorization!} : undefined;
+    const auth = this.authorization 
+      ? {
+          Authorization: typeof this.authorization === 'function'
+            ? this.authorization()
+            : this.authorization
+        }
+      : undefined;
     const merged = {...auth, ...headers};
 
     const result = {};
