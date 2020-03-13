@@ -108,7 +108,10 @@ declare interface FormDataIfc {
   prototype: FormDataPrototypeIfc;
 }
 
-declare const FormData: FormDataIfc | undefined;
+declare const self: any;
+
+const root: any = typeof self !== 'undefined' ? self : this;
+const FormData: FormDataIfc | undefined = root.FormData;
 
 const FormDataImpl: FormDataIfc = FormData ?? require('url').URLSearchParams;
 
