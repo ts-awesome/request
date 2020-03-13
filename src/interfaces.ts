@@ -72,7 +72,7 @@ export interface IHttpTransport {
 
   request<T = unknown>(method: HttpMethod, uri: string, options?: Options): Promise<Response>;
 
-  stream<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress): Promise<Readable | null>;
+  stream<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress): Promise<(Readable & {total: number}) | null>;
   download<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress & WithDestination): Promise<void>;
   upload<T = unknown>(method: HttpMethod, uri: string, options: Omit<Options, 'body'> & WithModel<ElementType<T>> & WithProgress & WithSource): Promise<T>;
 }

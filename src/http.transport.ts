@@ -89,8 +89,8 @@ export class HttpTransport implements IHttpTransport {
   public async stream<T>(
     method: HttpMethod,
     uri: string,
-    {progress, ...options}: Options & WithProgress
-  ): Promise<Readable | null> {
+    {progress, ...options}: Options & WithProgress = {}
+  ): Promise<(Readable & {total: number}) | null> {
     const response = await this.request(method, uri, options);
 
     // no need to check for response.ok here
@@ -209,7 +209,7 @@ export class HttpTransport implements IHttpTransport {
       _options.headers.set('Content-Length', `${size}`);
     }
 
-    const response = await this.request(method, _uri, options);
+    const response = await this.request(method, _uri, _options as any);
 
     progress?.complete();
 
@@ -224,7 +224,7 @@ export class HttpTransport implements IHttpTransport {
     return `${this.baseUrl}${uri.startsWith('/') ? '' : '/'}${uri}`;
   }
 
-  protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Headers {
+  protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
 
     const Authorization = typeof this.authorization === 'function' ? this.authorization() : this.authorization;
 
@@ -236,7 +236,7 @@ export class HttpTransport implements IHttpTransport {
       result[key.toLowerCase()] = merged[key];
     }
 
-    return new Headers(result);
+    return result;
   }
 
   private _requestParams(
@@ -245,9 +245,18 @@ export class HttpTransport implements IHttpTransport {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     method = method.toUpperCase() as any;
 
+    let plain: Record<string, string> = {};
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        plain[key] = value;
+      })
+    } else {
+      plain = {...options.headers};
+    }
+
     const headers = new Headers({
       ...resolveEtagged(method, options),
-      ...this.resolveHeaders(method, uri, options.headers ?? {}),
+      ...this.resolveHeaders(method, uri, plain),
     });
 
     // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
@@ -258,7 +267,7 @@ export class HttpTransport implements IHttpTransport {
     if (typeof body === 'object') {
       if (body instanceof FormData) {
         encoding = typeof encoding === 'string' ? encoding : undefined;
-      } else {
+      } else if (Object.getPrototypeOf(body).constructor === Object) {
         encoding = JSON;
       }
 
@@ -272,15 +281,15 @@ export class HttpTransport implements IHttpTransport {
         headers.set('Content-Type', 'application/json');
         body = encoding.stringify(body);
         encoding = undefined;
+      } else if (typeof encoding === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        body = (encoding as any)(body);
+        encoding = undefined;
       } else if (typeof encoding?.stringify === 'function') {
         if (encoding.encoding != null) {
           headers.set('Content-Type', encoding.encoding);
         }
         body = encoding.stringify(body);
-        encoding = undefined;
-      } else if (typeof encoding === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        body = (encoding as any)(body);
         encoding = undefined;
       } else {
         encoding = undefined;
@@ -294,10 +303,10 @@ export class HttpTransport implements IHttpTransport {
       body,
       encoding,
       method: method.toUpperCase(),
-      headers,
+      headers: headers,
     };
 
-    if (!/^https?:\/\//gi.test(uri)) {
+    if (!/^https?:\/\//gi.test(uri) && !uri.startsWith('data:')) {
       uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
     }
 
