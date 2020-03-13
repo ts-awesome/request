@@ -1,4 +1,6 @@
-import {ETagSymbol, RestoreSymbol} from "./symbols";
+import {ETagSymbol} from "./symbols";
+import {Readable, Writable} from "stream";
+import {Response} from "cross-fetch";
 
 export interface TransferProgress {
   readonly total: number;
@@ -17,60 +19,34 @@ export interface ILogger {
   warn(...args: string[]): void;
 }
 
-export interface CoreOptions {
-  baseUrl?: string;
-  formData?: { [key: string]: any };
-  form?: { [key: string]: any } | string;
-  qs?: any;
-  qsStringifyOptions?: any;
-  qsParseOptions?: any;
-  json?: any;
-  jsonReviver?: (key: string, value: any) => any;
-  jsonReplacer?: (key: string, value: any) => any;
-  forever?: any;
-  host?: string;
-  port?: number;
-  method?: string;
-  headers?: Record<string, any>;
-  body?: any;
-  family?: 4 | 6;
-  followAllRedirects?: boolean;
-  followOriginalHttpMethod?: boolean;
-  maxRedirects?: number;
-  removeRefererHeader?: boolean;
-  encoding?: string | null;
-  pool?: any;
+export interface Stringifier {
+  <T>(x: T): string;
+}
+
+export interface Enconding {
+  readonly encoding?: string;
+  stringify<T>(x: T): string;
+}
+
+export interface Options extends RequestInit {
+  qs?: Record<string, string | number>;
+  headers?: Record<string, string>;
+  encoding?: Enconding | Stringifier | string;
+  method?: HttpMethod;
   timeout?: number;
-  localAddress?: string;
-  proxy?: any;
-  tunnel?: boolean;
-  strictSSL?: boolean;
-  rejectUnauthorized?: boolean;
-  time?: boolean;
-  gzip?: boolean;
-  preambleCRLF?: boolean;
-  postambleCRLF?: boolean;
-  withCredentials?: boolean;
-  useQuerystring?: boolean;
+  etag?: string;
+  eTagged?: {[ETagSymbol]?: string};
 }
 
-export interface Restorable<T> {
-  [RestoreSymbol](raw: any): T;
-}
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ElementType<T> = T extends any[] ? T[number] : T;
 
 export interface ConstructorOf<T> {
-  new (...args: any[]): T;
-}
-
-export interface WithEtagged {
-  etag?: string;
-  eTagged?: {[ETagSymbol]?: string}
+  new (...args: unknown[]): T;
 }
 
 export interface WithModel<T> {
-  Model?: ConstructorOf<T> | Restorable<T>;
+  Model?: ConstructorOf<T> | [ConstructorOf<T>];
 }
 
 export interface WithProgress {
@@ -79,25 +55,26 @@ export interface WithProgress {
 }
 
 export interface WithSource {
-  src: NodeJS.ReadableStream;
+  src: Readable;
 }
 
 export interface WithDestination {
-  dest: NodeJS.WritableStream;
+  dest: Writable;
 }
 
 export interface IHttpTransport {
-  get<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
-  post<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
-  put<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
-  patch<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
-  delete<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
-  head<T = any>(uri: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T>;
+  get<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
+  post<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
+  put<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
+  patch<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
+  delete<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
+  head(uri: string, options?: Options): Promise<void>;
 
-  request<T = any>(method: HttpMethod, uri: string, options?: CoreOptions & WithModel<ElementType<T>> & WithEtagged): Promise<T>;
+  request<T = unknown>(method: HttpMethod, uri: string, options?: Options): Promise<Response>;
 
-  download<T = any>(method: HttpMethod, uri: string, options: CoreOptions & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithDestination): Promise<T>;
-  upload<T = any>(method: HttpMethod, uri: string, options: Omit<CoreOptions, 'body'> & WithModel<ElementType<T>> & WithEtagged & WithProgress & WithSource): Promise<T>;
+  stream<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress): Promise<Readable | null>;
+  download<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress & WithDestination): Promise<void>;
+  upload<T = unknown>(method: HttpMethod, uri: string, options: Omit<Options, 'body'> & WithModel<ElementType<T>> & WithProgress & WithSource): Promise<T>;
 }
 
 export declare type TokenProvider = () => string | null | undefined;

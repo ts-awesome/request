@@ -1,5 +1,4 @@
-import {CoreOptions, Response} from 'request';
-import {CaptureStream, ProgressStream} from "./utils";
+import {CaptureStream, ProgressStream, FormData} from "./utils";
 import {RequestError} from "./request.error";
 import {
   ConstructorOf,
@@ -7,18 +6,23 @@ import {
   HttpMethod,
   IHttpTransport,
   ILogger,
-  Restorable,
+  Options,
+  TokenProvider,
   TransferProgress,
-  WithDestination, WithEtagged,
+  WithDestination,
   WithModel,
   WithProgress,
-  WithSource,
-  TokenProvider
+  WithSource
 } from "./interfaces";
-import {RestoreSymbol, ETagSymbol} from "./symbols";
+import {ETagSymbol} from "./symbols";
+import reader from '@viatsyshyn/ts-model-reader';
+import fetch, {Headers, Response} from 'cross-fetch';
+import {createHash, Hash} from 'crypto';
+import {Readable} from "readable-stream";
+import querystring from 'querystring';
+import AbortController from 'abort-controller';
 
-import request = require('request');
-import {Hash, createHash} from 'crypto';
+/* eslint-disable @typescript-eslint/no-use-before-define */
 
 export class HttpTransport implements IHttpTransport {
   constructor(
@@ -28,165 +32,188 @@ export class HttpTransport implements IHttpTransport {
   ) {
   }
 
-  public post<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('POST', endpoint, options);
+  public async post<T>(endpoint: string, {Model, ...options}: Options & WithModel<ElementType<T>> = {}): Promise<T> {
+    return this._readData(await this.request('POST', endpoint, options), Model);
   }
 
-  public put<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('PUT', endpoint, options);
+  public async put<T>(endpoint: string, {Model, ...options}: Options & WithModel<ElementType<T>> = {}): Promise<T> {
+    return this._readData(await this.request('PUT', endpoint, options), Model);
   }
 
-  public patch<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('PATCH', endpoint, options);
+  public async patch<T>(endpoint: string, {Model, ...options}: Options & WithModel<ElementType<T>> = {}): Promise<T> {
+    return this._readData(await this.request('PATCH', endpoint, options), Model);
   }
 
-  public delete<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('DELETE', endpoint, options);
+  public async delete<T>(endpoint: string, {Model, ...options}: Options & WithModel<ElementType<T>> = {}): Promise<T> {
+    return this._readData(await this.request('DELETE', endpoint, options), Model);
   }
 
-  public get<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('GET', endpoint, options);
+  public async get<T>(endpoint: string, {Model, ...options}: Options & WithModel<ElementType<T>> = {}): Promise<T> {
+    return this._readData(await this.request('GET', endpoint, options), Model);
   }
 
-  public head<T>(endpoint: string, options?: CoreOptions & WithModel<ElementType<T>>): Promise<T> {
-    return this.request('HEAD', endpoint, options);
+  public async head(endpoint: string, options?: Options): Promise<void> {
+    await this.request('HEAD', endpoint, options);
   }
 
-  public async request<T = any>(method: HttpMethod, uri: string, {Model, ...options}: CoreOptions & WithModel<ElementType<T>> = {}): Promise<T> {
-    const response = new Promise<Response>(
-      (resolve, reject) => {
-        const [_uri, _options] = this._requestParams(method, uri, options);
-        request(_uri, _options,
-          (err: Error, res: any) => !err
-            ? resolve(res)
-            : reject(new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`))
-        )
-      });
+  public async request<T>(method: HttpMethod, uri: string, options: Options & {timeout?: number} = {}): Promise<Response> {
+    const [_uri, _options] = this._requestParams(method, uri, options);
+    const {timeout, signal} = options;
+    if (timeout != null && signal) {
+      throw new Error('Can not have timeout and signal options at the same time');
+    }
 
-    return this._processResponse(method, uri, await response, Model);
+    let response;
+    try {
+      response = await new Promise((resolve, reject) => {
+        if (timeout) {
+          const controller = new AbortController();
+          setTimeout(() => {
+            controller.abort();
+            this.logger?.warn('timeout', method, _uri);
+            reject(new RequestError('Timeout', 'RequestError', 0));
+          }, timeout);
+          _options.signal = controller.signal;
+        }
+
+        fetch(_uri, _options).then(resolve, reject);
+      })
+
+    } catch (err) {
+      this.logger?.warn(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
+      throw new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
+    }
+    return await this._processResponse(method, uri, response);
+  }
+
+  public async stream<T>(
+    method: HttpMethod,
+    uri: string,
+    {progress, ...options}: Options & WithProgress
+  ): Promise<Readable | null> {
+    const response = await this.request(method, uri, options);
+
+    // no need to check for response.ok here
+
+    const total = parseInt(response.headers.get('Content-Length') ?? '0', 10);
+
+    const progressStream = new ProgressStream<TransferProgress>(total);
+    progress?.next({current: null, total});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream: any = response.body;
+    if (stream == null) {
+      progress?.complete();
+      return null;
+    }
+
+    if (typeof stream.pipe !== 'function') {
+      throw new Error (`Fetch body doesn't support pipe()`);
+    }
+
+    return (stream.pipeTo ?? stream.pipe).call(stream, progressStream)
+      .on('progress', (event: TransferProgress) => progress?.next(event))
+      .once('end', () => progress?.complete());
   }
 
   public async download<T>(
     method: HttpMethod,
     uri: string,
-    {Model, dest, progress, ...options}: CoreOptions & WithModel<ElementType<T>> & WithProgress & WithDestination
-  ): Promise<T> {
-    if (!dest) {
-      throw new Error(`dest is required`);
+    {dest, progress, ...options}: Options & WithProgress & WithDestination
+  ): Promise<void> {
+    const response = await this.request(method, uri, options);
+
+    // no need to check for response.ok here
+
+    const total = parseInt(response.headers.get('Content-Length') ?? '0', 10);
+
+    const progressStream = new ProgressStream<TransferProgress>(total);
+    progress?.next({current: null, total});
+
+    let hash: Hash;
+    const captureStream = new CaptureStream();
+
+    if (response.headers.has('Digest')) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const [alg] = response.headers.get('Digest')!.split('=');
+      hash = createHash(alg.replace('-', ''));
+      captureStream.digest(hash);
     }
 
-    let hash: Hash | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream: any = response.body;
+    if (stream == null) {
+      throw new RequestError('No stream', 'RequestError',0);
+    }
 
-    const errorCaptureStream = new CaptureStream();
-    const progressStream = new ProgressStream<TransferProgress>();
-    progress?.next({current: null, total: 0});
-
-    const [_uri, _options] = this._requestParams(method, uri, options);
-    const response = new Promise<Response>((resolve, reject) => {
-      let res: Response | null = null;
-      request(_uri, _options)
-        .once('response', function (response: any) {
-          if (response.statusCode < 200 || response.statusCode >= 300) {
-            errorCaptureStream.capture();
-            resolve(response);
-            progress?.complete();
-          } else {
-            if (response.headers['digest']) {
-              const [alg] = response.headers['digest'].split('=');
-              hash = createHash(alg.replace('-', ''));
-              errorCaptureStream.digest(hash);
-            }
-            res = response;
-            progressStream.total = parseInt(response.headers['content-length'] || '0', 10);
-            progress?.next({current: 0, total: progressStream.total});
-          }
-        })
-        .once('error', (err: Error) => {
-          reject(new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`));
-          progress?.complete();
-        })
-        .once('end', () => {
-          resolve(res!);
-          progress?.complete();
-        })
-        .pipe(errorCaptureStream)
-        .pipe(progressStream)
-        .pipe(dest);
-    });
+    if (typeof stream.pipe !== 'function') {
+      throw new Error (`Fetch body doesn't support pipe()`);
+    }
 
     progressStream.on('progress', (event: TransferProgress) => progress?.next(event));
 
-    const resolved = await response;
-    resolved.body = errorCaptureStream.content;
+    return new Promise((resolve, reject) => {
+      (stream.pipeTo ?? stream.pipe).call(stream, captureStream)
+        .once('error', reject)
+        .once('end', () => {
+          progress?.complete();
 
-    if (resolved.statusCode === 200) {
-      if (hash != null && typeof resolved.headers['digest'] === 'string') {
-        const [, ...parts] = resolved.headers['digest'].split('=');
-        const expected = parts.join('=');
-        const computed = hash.digest('base64');
-        if (expected !== computed) {
-          throw new RequestError(`Digest mismatch`, 'RequestError', 0, {
-            expected,
-            computed,
-          });
-        }
-      } else if (progressStream.total > progressStream.progressed) {
-        throw new RequestError(`Broken connection`, 'RequestError', 0, {
-          total: progressStream.total,
-          progressed: progressStream.progressed,
+          if (hash != null) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const [, ...parts] = response.headers.get('Digest')!.split('=');
+            const expected = parts.join('=');
+            const computed = hash.digest('base64');
+            if (expected !== computed) {
+              reject(new RequestError(`Digest mismatch`, 'RequestError', 0, {
+                expected,
+                computed,
+              }));
+            }
+          } else if (progressStream.total > progressStream.progressed) {
+            reject(new RequestError(`Broken connection`, 'RequestError', 0, {
+              total: progressStream.total,
+              progressed: progressStream.progressed,
+            }));
+          }
+
+          setImmediate(resolve);
         })
-      }
-    }
-
-    return this._processResponse(method, uri, resolved, Model);
+        .pipe(progressStream)
+        .pipe(dest);
+    });
   }
 
   public async upload<T>(
     method: HttpMethod,
     uri: string,
-    {Model, progress, src, size, ...options}: CoreOptions & WithModel<ElementType<T>> & WithProgress & WithSource,
+    {Model, progress, src, size, ...options}: Options & WithModel<ElementType<T>> & WithProgress & WithSource,
   ): Promise<T> {
+    const [_uri, _options] = this._requestParams(method, uri, options);
+
     if (!src) {
       throw new Error(`src is required`);
     }
-    const captureStream = new CaptureStream();
+
     const progressStream = new ProgressStream<TransferProgress>(size);
     progressStream.total = size ?? 0;
-    options.body = src.pipe(progressStream);
     progress?.next({current: 0, total: progressStream.total});
-
-    const [_uri, _options] = this._requestParams(method, uri, options);
-
-    if (_options.headers['content-length'] == null && size != null) {
-      _options.headers['content-length'] = size;
-    }
-
-    const response = new Promise<Response>((resolve, reject) => {
-      let res: Response | null = null;
-      request(_uri, _options)
-        .once('response', (response: any) => {
-          captureStream.capture();
-          res = response;
-        })
-        .once('error', (err: Error) => {
-          progress?.complete();
-          reject(new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`));
-        })
-        .once('end', () => {
-          resolve(res!);
-          progress?.complete();
-        })
-        .pipe(captureStream)
-    });
 
     if (progress) {
       progressStream.on('progress', (event: TransferProgress) => progress?.next(event));
     }
 
-    const resolved = await response;
-    resolved.body = captureStream.content;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _options.body = src.pipe(progressStream as any);
 
-    return this._processResponse(method, uri, resolved, Model);
+    if (!_options.headers.has('Content-Length') && size != null) {
+      _options.headers.set('Content-Length', `${size}`);
+    }
+
+    const response = await this.request(method, _uri, options);
+
+    progress?.complete();
+
+    return this._readData(response, Model);
   }
 
   protected resolveRelativeUrl(method: HttpMethod, uri: string): string {
@@ -194,40 +221,84 @@ export class HttpTransport implements IHttpTransport {
       throw new Error(`Unable to resolve relative URL ${method} ${uri}. Please override resolveRelativeUrl() method`);
     }
 
-    return `${this.baseUrl}${uri}`;
+    return `${this.baseUrl}${uri.startsWith('/') ? '' : '/'}${uri}`;
   }
 
-  protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
+  protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Headers {
 
-    const authorization = typeof this.authorization === 'function' ? this.authorization() : this.authorization;
+    const Authorization = typeof this.authorization === 'function' ? this.authorization() : this.authorization;
 
-    const auth = authorization ? { Authorization: authorization } : undefined;
+    const auth = Authorization ? { Authorization } : undefined;
     const merged = {...auth, ...headers};
 
     const result = {};
-    for(let key of Object.keys(merged)) {
+    for(const key of Object.keys(merged)) {
       result[key.toLowerCase()] = merged[key];
     }
 
-    return result;
+    return new Headers(result);
   }
 
-  private _requestParams(method: HttpMethod, uri: string, options: CoreOptions & WithEtagged): [string, request.CoreOptions & {method: string, headers: Record<string, any>}] {
+  private _requestParams(
+    method: HttpMethod, uri: string, options: Options = {}
+  ): [string, RequestInit & {headers: Headers}] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     method = method.toUpperCase() as any;
 
-    const {etag, eTagged, ...rest} = options;
+    const headers = new Headers({
+      ...resolveEtagged(method, options),
+      ...this.resolveHeaders(method, uri, options.headers ?? {}),
+    });
+
+    // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
+    let {qs, timeout, encoding, body, ...rest} = options;
+
+    const query = querystring.stringify(qs);
+
+    if (typeof body === 'object') {
+      if (body instanceof FormData) {
+        encoding = typeof encoding === 'string' ? encoding : undefined;
+      } else {
+        encoding = JSON;
+      }
+
+      if (encoding === 'application/json') {
+        encoding = JSON;
+      }
+
+      if (typeof encoding === 'string') {
+        // keep encoding do nothing
+      } else if (encoding === JSON) {
+        headers.set('Content-Type', 'application/json');
+        body = encoding.stringify(body);
+        encoding = undefined;
+      } else if (typeof encoding?.stringify === 'function') {
+        if (encoding.encoding != null) {
+          headers.set('Content-Type', encoding.encoding);
+        }
+        body = encoding.stringify(body);
+        encoding = undefined;
+      } else if (typeof encoding === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        body = (encoding as any)(body);
+        encoding = undefined;
+      } else {
+        encoding = undefined;
+      }
+    } else {
+      encoding = undefined;
+    }
 
     const opts = {
       ...rest,
+      body,
+      encoding,
       method: method.toUpperCase(),
-      headers: {
-        ...resolveEtagged(method, options),
-        ...this.resolveHeaders(method, uri, options?.headers ?? {}),
-      },
+      headers,
     };
 
     if (!/^https?:\/\//gi.test(uri)) {
-      uri = this.resolveRelativeUrl(method, uri);
+      uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
     }
 
     this.logger?.debug('Http', method, uri, JSON.stringify(opts, null, 2));
@@ -235,6 +306,7 @@ export class HttpTransport implements IHttpTransport {
     return [uri, opts];
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected resolveError(statusMessage: string, statusCode: number, body: any): void {
     const {code, error, name, data, status, message, type, ...rest} = body ?? {};
     if (name ?? type ?? error ?? code ?? status ?? message ?? false) {
@@ -242,67 +314,58 @@ export class HttpTransport implements IHttpTransport {
     }
   }
 
-  protected resolveModel<T>(raw: any, Model?: ConstructorOf<ElementType<T>> | Restorable<ElementType<T>>, _etag?: string): T {
-    if (!Model) {
+  protected resolveModel<T>(raw: T, Model?: ConstructorOf<ElementType<T>> | [ConstructorOf<ElementType<T>>], _etag?: string): T {
+    if (Model == null || raw == null) {
       return raw as T;
     }
 
-    if (Array.isArray(raw)) {
-      return raw.map(item => _restore(item, Model)) as any;
-    }
-
-    return _restore(raw, Model);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return addEtag(reader(raw, Model as any, true), _etag);
   }
 
-  private _processResponse<T = any>(
+  private async _processResponse(
     method: HttpMethod,
     uri: string,
     response: Response,
-    Model?: ConstructorOf<ElementType<T>> | Restorable<ElementType<T>>
-  ): T {
+  ): Promise<Response> {
+    if (response.ok) {
+      return response;
+    }
+
     const {
-      statusCode,
-      statusMessage,
+      status,
+      statusText,
+      headers,
     } = response;
 
-    const raw = response.body as any;
-    const ct = response.headers['content-type'];
-    const body = raw && ct && ct.startsWith('application/json') && typeof raw === 'string'
-      ? JSON.parse(raw)
-      : raw;
+    const raw = await response.text();
 
-    if (statusCode >= 200 && statusCode < 300) {
-      const etag = response.headers.etag;
-      const value = Array.isArray(etag) ? etag[0] : etag;
-      return addEtag(this.resolveModel(body, Model, value), value);
-    }
+    this.logger?.warn(`Http ${method.toUpperCase()} ${uri} failed ${status}: ${statusText}\n${raw}`);
 
-    this.logger?.warn(`Http ${method.toUpperCase()} ${uri} failed ${statusCode}: ${statusMessage}\n${typeof raw === 'string' ? raw : JSON.stringify(raw)}`);
-
-    let message = statusMessage;
-    let code = statusCode;
-    this.resolveError(message, code, body);
+    const body = headers.get('Content-Type')?.startsWith('application/json') ? JSON.parse(raw) : raw;
+    this.resolveError(statusText, status, body);
     if (body && typeof body === 'object') {
-      this.resolveError(message, code, body);
-
-      const {code: jsonCode = code, error: jsonError = message, name, data, ...rest} = body ?? {};
-      throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${code}: ${message}${Object.keys(rest).length ? '\n' + JSON.stringify(rest) : ''}`)
+      this.resolveError(statusText, status, body);
+      const {code: jsonCode = status, error: jsonError = statusText, ...rest} = body;
+      throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${jsonCode}: ${jsonError}${Object.keys(rest).length ? '\n' + JSON.stringify(rest) : ''}`)
     }
 
-    throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${code}: ${message}\n${typeof raw === 'string' ? raw : JSON.stringify(raw)}`)
-  }
-}
-
-function _restore<T>(raw: any, Model: ConstructorOf<T> | Restorable<T>): T {
-  if (typeof Model[RestoreSymbol] === 'function') {
-    return Model[RestoreSymbol](raw);
+    throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${status}: ${statusText}\n${typeof raw === 'string' ? raw : JSON.stringify(raw)}`)
   }
 
-  if (typeof raw === 'object') {
-    return Object.setPrototypeOf(raw, (Model as ConstructorOf<T>).prototype);
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async _readData(response: Response, Model: any): Promise<any> {
 
-  return raw as T;
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (!contentType.startsWith('application/json')) {
+      return await response.text();
+    }
+
+    const body = await response.json();
+    const etag = response.headers.get('ETag');
+    const value = Array.isArray(etag) ? etag[0] : etag;
+    return addEtag(this.resolveModel(body, Model, value), value);
+  }
 }
 
 function addEtag<T>(obj: T, etag?: string): T {
@@ -313,15 +376,16 @@ function addEtag<T>(obj: T, etag?: string): T {
   return obj;
 }
 
-function resolveEtagged(method: HttpMethod, {etag, eTagged}: WithEtagged): {[key: string]: string} {
+function resolveEtagged(method: HttpMethod, {etag, eTagged}: Options): {[key: string]: string} {
   const result = {};
   const value = etag ?? eTagged?.[ETagSymbol];
+  // noinspection SuspiciousTypeOfGuard
   if (typeof value === 'string' && method === 'GET') {
     result['If-None-Match'] = value.startsWith('"') ? value : JSON.stringify(value);
   }
+  // noinspection SuspiciousTypeOfGuard
   if (typeof value === 'string' && (method === 'PUT' || method === 'PATCH' || method === 'DELETE')) {
     result['If-Match'] = value.startsWith('"') ? value : JSON.stringify(value);
   }
   return result;
 }
-

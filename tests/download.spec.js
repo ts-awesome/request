@@ -13,21 +13,21 @@ describe('download', () => {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Length', '20000');
         res.write('BROKEN-PDF');
-        res.end();
+        setTimeout(() => res.end(), 500);
       } else if (req.method === 'POST') {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.write(JSON.stringify({"ok": "ok", "message": "error"}));
-        res.end();
+        setTimeout(() => res.end(), 500);
       } else if (req.method === 'PUT') {
         res.statusCode = 200;
         res.setHeader('Digest', 'sha-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=');
         res.write('BROKEN-PDF');
-        res.end();
+        setTimeout(() => res.end(), 500);
       } else {
         res.setHeader('Content-Type', 'application/json');
         res.write(JSON.stringify({"ok": "ok"}));
-        res.end();
+        setTimeout(() => res.end(), 500);
       }
     });
     server.listen(done);
@@ -94,9 +94,15 @@ describe('download', () => {
     const dest = fs.createWriteStream(name);
 
     try {
-      const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest});
+      const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest, timeout: 2000, progress: {
+        next(x) {console.log('next', x)},
+        error(x) {console.log('error', x)},
+        complete () {console.log('complete')}
+      }});
+      console.log('HEHEHEHEHEHEH');
       fail(`Expected to throw`);
     } catch (e) {
+      console.log(e);
       expect(e.name).toBe('RequestError');
       expect(e.message).toBe('Broken connection');
 

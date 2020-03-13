@@ -6,23 +6,23 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "lint": "eslint \"src/**/*.ts\"",
     "test": "jest"
   },
   "dependencies": {
-    "reflect-metadata": "^0.1.13",
-    "request": "^2.88.0"
-  },
-  "peerDependencies": {
-    "inversify": "^5.0.0"
+    "@viatsyshyn/ts-model-reader": "^0.1.6",
+    "abort-controller": "^3.0.0",
+    "cross-fetch": "^3.0.4",
+    "readable-stream": "^3.6.0"
   },
   "devDependencies": {
-    "@types/inversify": "^2.0.0",
-    "@types/node": "^13.1.6",
-    "@types/reflect-metadata": "^0.1.0",
-    "@types/request": "^2.48.0",
-    "inversify": "^5.0.0",
+    "@types/node": "^12.12.29",
+    "@types/readable-stream": "^2.3.5",
+    "@typescript-eslint/eslint-plugin": "^2.16.0",
+    "@typescript-eslint/parser": "^2.16.0",
+    "eslint": "^6.8.0",
     "jest": "^24.9.0",
-    "typescript": "^3.7.4"
+    "typescript": "^3.7.5"
   },
   "author": "Volodymyr Iatsyshyn <viatsyshyn@gmail.com>",
   "license": "ISC"

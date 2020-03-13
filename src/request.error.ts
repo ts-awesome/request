@@ -3,7 +3,8 @@ export class RequestError extends Error {
     message: string,
     public readonly name: string,
     public readonly statusCode: number = 500,
-    public readonly data?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    public readonly data?: any,
   ) {
     super(message);
     Object.setPrototypeOf(this, RequestError.prototype);

@@ -30,7 +30,7 @@ describe('request', () => {
   it('fetches ok', async () => {
     const http = new HttpTransport();
 
-    const data = await http.request('GET', `http://127.0.0.1:${port}`);
+    const data = await http.get( `http://127.0.0.1:${port}`);
 
     expect(data).toStrictEqual({ok: 'ok'});
   });
@@ -39,7 +39,7 @@ describe('request', () => {
     const http = new HttpTransport();
 
     try {
-      await http.request('POST', `http://127.0.0.1:${port}`);
+      await http.post(`http://127.0.0.1:${port}`);
       fail(`Expected to throw`);
     } catch (e) {
       expect(e.name).toBe('Error');
