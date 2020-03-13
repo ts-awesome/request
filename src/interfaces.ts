@@ -30,7 +30,7 @@ export interface Enconding {
 }
 
 export interface Options {
-  qs?: Record<string, string | number>;
+  qs?: Record<string, string | number | boolean>;
   headers?: Record<string, string>;
   encoding?: Enconding | Stringifier | string;
   timeout?: number;
