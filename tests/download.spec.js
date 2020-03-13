@@ -97,7 +97,6 @@ describe('download', () => {
       const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest, timeout: 2000});
       fail(`Expected to throw`);
     } catch (e) {
-      console.log(e);
       expect(e.name).toBe('RequestError');
       expect(e.message).toBe('Broken connection');
 
