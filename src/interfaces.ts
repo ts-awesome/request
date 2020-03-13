@@ -1,6 +1,7 @@
 import {ETagSymbol} from "./symbols";
 import {Readable, Writable} from "stream";
 import {Response} from "cross-fetch";
+import {AbortSignal} from "abort-controller";
 
 export interface TransferProgress {
   readonly total: number;
@@ -28,14 +29,26 @@ export interface Enconding {
   stringify<T>(x: T): string;
 }
 
-export interface Options extends RequestInit {
+export interface Options {
   qs?: Record<string, string | number>;
   headers?: Record<string, string>;
   encoding?: Enconding | Stringifier | string;
-  method?: HttpMethod;
   timeout?: number;
   etag?: string;
   eTagged?: {[ETagSymbol]?: string};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body?: BodyInit | null | Record<string, any>;
+  cache?: RequestCache;
+  credentials?: RequestCredentials;
+  integrity?: string;
+  keepalive?: boolean;
+  mode?: RequestMode;
+  redirect?: RequestRedirect;
+  referrer?: string;
+  referrerPolicy?: ReferrerPolicy;
+  signal?: AbortSignal | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  window?: any;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

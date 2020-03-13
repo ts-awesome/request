@@ -204,6 +204,7 @@ export class HttpTransport implements IHttpTransport {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     _options.body = src.pipe(progressStream as any);
+    _options.headers = new Headers(_options.headers);
 
     if (!_options.headers.has('Content-Length') && size != null) {
       _options.headers.set('Content-Length', `${size}`);
@@ -241,7 +242,7 @@ export class HttpTransport implements IHttpTransport {
 
   private _requestParams(
     method: HttpMethod, uri: string, options: Options = {}
-  ): [string, RequestInit & {headers: Headers}] {
+  ): [string, RequestInit] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     method = method.toUpperCase() as any;
 
@@ -280,30 +281,22 @@ export class HttpTransport implements IHttpTransport {
       } else if (encoding === JSON) {
         headers.set('Content-Type', 'application/json');
         body = encoding.stringify(body);
-        encoding = undefined;
       } else if (typeof encoding === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         body = (encoding as any)(body);
-        encoding = undefined;
       } else if (typeof encoding?.stringify === 'function') {
         if (encoding.encoding != null) {
           headers.set('Content-Type', encoding.encoding);
         }
         body = encoding.stringify(body);
-        encoding = undefined;
-      } else {
-        encoding = undefined;
       }
-    } else {
-      encoding = undefined;
     }
 
-    const opts = {
+    const opts: RequestInit = {
       ...rest,
-      body,
-      encoding,
+      body: body as string,
       method: method.toUpperCase(),
-      headers: headers,
+      headers,
     };
 
     if (!/^https?:\/\//gi.test(uri) && !uri.startsWith('data:')) {
