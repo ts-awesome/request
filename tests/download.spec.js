@@ -94,12 +94,7 @@ describe('download', () => {
     const dest = fs.createWriteStream(name);
 
     try {
-      const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest, timeout: 2000, progress: {
-        next(x) {console.log('next', x)},
-        error(x) {console.log('error', x)},
-        complete () {console.log('complete')}
-      }});
-      console.log('HEHEHEHEHEHEH');
+      const r = await http.download('PATCH', `http://127.0.0.1:${port}`, {dest, timeout: 2000});
       fail(`Expected to throw`);
     } catch (e) {
       console.log(e);
