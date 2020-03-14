@@ -16,11 +16,11 @@ import {
 } from "./interfaces";
 import {ETagSymbol} from "./symbols";
 import reader from '@viatsyshyn/ts-model-reader';
-import fetch, {Headers, Response} from 'cross-fetch';
+import fetch, {Headers, Response} from 'cross-fetch/polyfill';
 import {createHash, Hash} from 'crypto';
 import {Readable} from "readable-stream";
 import querystring from 'querystring';
-import AbortController from 'abort-controller';
+import {AbortController} from 'abort-controller/dist/abort-controller';
 
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
