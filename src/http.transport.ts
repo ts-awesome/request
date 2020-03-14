@@ -16,7 +16,7 @@ import {
 } from "./interfaces";
 import {ETagSymbol} from "./symbols";
 import reader from '@viatsyshyn/ts-model-reader';
-import fetch, {Headers, Response} from 'cross-fetch/polyfill';
+import fetch, {Headers, Response} from 'cross-fetch';
 import {createHash, Hash} from 'crypto';
 import {Readable} from "readable-stream";
 import querystring from 'querystring';
@@ -247,7 +247,7 @@ export class HttpTransport implements IHttpTransport {
     method = method.toUpperCase() as any;
 
     let plain: Record<string, string> = {};
-    if (options.headers instanceof Headers) {
+    if (typeof options.headers === 'object' && options.headers instanceof Headers) {
       options.headers.forEach((value, key) => {
         plain[key] = value;
       })
