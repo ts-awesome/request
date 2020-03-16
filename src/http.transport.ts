@@ -91,6 +91,17 @@ export class HttpTransport implements IHttpTransport {
     uri: string,
     {progress, ...options}: Options & WithProgress = {}
   ): Promise<(Readable & {total: number}) | null> {
+    const {headers = {}} = options || {};
+    const {accept = null} = headers;
+
+    options = {
+      ...options,
+      headers: {
+        ...headers,
+        accept: accept ?? '*/*'
+      }
+    };
+
     const response = await this.request(method, uri, options);
 
     // no need to check for response.ok here
@@ -107,7 +118,7 @@ export class HttpTransport implements IHttpTransport {
       return null;
     }
 
-    if (typeof stream.pipe !== 'function') {
+    if (typeof stream.pipe !== 'function' && typeof stream.pipeTo !== 'function') {
       throw new Error (`Fetch body doesn't support pipe()`);
     }
 
@@ -121,6 +132,17 @@ export class HttpTransport implements IHttpTransport {
     uri: string,
     {dest, progress, ...options}: Options & WithProgress & WithDestination
   ): Promise<void> {
+    const {headers = {}} = options || {};
+    const {accept = null} = headers;
+
+    options = {
+      ...options,
+      headers: {
+        ...headers,
+        accept: accept ?? '*/*'
+      }
+    };
+
     const response = await this.request(method, uri, options);
 
     // no need to check for response.ok here
@@ -210,6 +232,7 @@ export class HttpTransport implements IHttpTransport {
       _options.headers.set('Content-Length', `${size}`);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await this.request(method, _uri, _options as any);
 
     progress?.complete();
@@ -290,6 +313,10 @@ export class HttpTransport implements IHttpTransport {
         }
         body = encoding.stringify(body);
       }
+    }
+
+    if (!headers.has('Accept')) {
+      headers.set('Accept', 'application/json')
     }
 
     const opts: RequestInit = {
