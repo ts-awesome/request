@@ -295,7 +295,7 @@ export class HttpTransport implements IHttpTransport {
         encoding = JSON;
       }
 
-      if (encoding === 'application/json') {
+      if (encoding === 'application/json, */*') {
         encoding = JSON;
       }
 
