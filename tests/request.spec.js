@@ -63,7 +63,7 @@ describe('request', () => {
     try {
       // const file = await (await httpTransport.request('GET', `http://127.0.0.1:${port}`)).blob();
 
-      const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
+      // const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
 
       const formData = new utils.FormData();
 
@@ -71,7 +71,7 @@ describe('request', () => {
       const blob = new Blob([JSON.stringify(obj, null, 2)], {type : 'application/json'});
       formData.append('test', 1);
       formData.append('data', blob);
-      formData.append('src', src, 'file.png');
+      // formData.append('src', src, 'file.png');
 
       console.log('formData', formData);
       const data = await httpTransport.put(`http://127.0.0.1:${port}`, {body: formData});
