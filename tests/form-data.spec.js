@@ -22,8 +22,6 @@ describe('request', () => {
         res.end();
       } else if (req.method === 'PUT') {
         // console.log('HERE');
-        // res.setHeader('Content-Length', '12');
-
         // console.log(req.headers);
         req.on('data', chunk => {
           // console.log(`Data chunk available: ${chunk}`)
@@ -38,6 +36,17 @@ describe('request', () => {
         res.write(JSON.stringify({ok: 'ok'}));
         res.end();
 
+      } else if (req.url.endsWith('/file')) {
+        // const strem =  fs.createReadStream(name);
+        // strem.pipe(res);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Length', '100000');
+        res.statusMessage = 'OK';
+        for(let i=0; i < 10000; i++) {
+          res.write('0123456789');
+        }
+        res.end();
       } else {
         res.setHeader('Content-Type', 'application/json');
         res.write('{"ok": "ok"}');
@@ -58,24 +67,26 @@ describe('request', () => {
     }
   });
 
-  it('fetches ok', async () => {
-    const http = new HttpTransport();
-
-    const data = await http.get( `http://127.0.0.1:${port}`);
-
-    expect(data).toStrictEqual({ok: 'ok'});
-  });
-
-  it('fetches 500', async () => {
-    const http = new HttpTransport();
-
+  it ('put formData as stream', async () => {
+    const httpTransport = new HttpTransport();
     try {
-      await http.post(`http://127.0.0.1:${port}`);
-      fail(`Expected to throw`);
-    } catch (e) {
-      expect(e.name).toBe('Error');
-      expect(e.message).toBe('error');
-      expect(e.data).toStrictEqual({ok: 'ok'});
-    }
-  });
+      const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
+
+      const formData = new utils.FormData();
+
+      formData.append('test', '1');
+      formData.append('src', src, 'file.txt');
+      formData.append('other', '2');
+
+      const data = await httpTransport.put(`http://127.0.0.1:${port}`, {body: formData});
+
+      await new Promise(r => setTimeout(r, 50));
+      expect(JSON.stringify(data)).toBe(JSON.stringify({ok: 'ok'}));
+    } finally {
+        try {
+        } catch (e) {
+          // ignored
+        }
+      }
+  })
 });

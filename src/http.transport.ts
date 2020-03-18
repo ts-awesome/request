@@ -111,6 +111,9 @@ export class HttpTransport implements IHttpTransport {
     const progressStream = new ProgressStream<TransferProgress>(total);
     progress?.next({current: null, total});
 
+    Object.defineProperty(progressStream, 'httpVersion', {value: '1.1', enumerable: false});
+    Object.defineProperty(progressStream, 'headers', {value: {'content-length': total}, configurable: false});
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stream: any = response.body;
     if (stream == null) {
