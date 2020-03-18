@@ -1,4 +1,4 @@
-import {CaptureStream, ProgressStream, FormData} from "./utils";
+import {CaptureStream, ProgressStream, FormData, URLSearchParams} from "./utils";
 import {RequestError} from "./request.error";
 import {
   ConstructorOf,
@@ -289,7 +289,7 @@ export class HttpTransport implements IHttpTransport {
     const query = querystring.stringify(qs);
 
     if (typeof body === 'object') {
-      if (body instanceof FormData) {
+      if (body instanceof FormData || body instanceof URLSearchParams) {
         encoding = typeof encoding === 'string' ? encoding : undefined;
       } else if (Object.getPrototypeOf(body).constructor === Object) {
         encoding = JSON;

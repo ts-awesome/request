@@ -6,10 +6,11 @@ const fs = require('fs');
 describe('request', () => {
   let server;
   let port;
+  let name;
 
   beforeAll(done => {
-    const name = './' + Math.random().toString(36);
-    fs.writeFileSync(name, 'test stream');
+    name = './' + Math.random().toString(36);
+    fs.writeFileSync(name, 'test stream ' + Math.random().toString(16));
 
     const size = fs.statSync(name).size;
 
@@ -20,16 +21,30 @@ describe('request', () => {
         res.write('{"ok": "ok", "message": "error"}');
         res.end();
       } else if (req.method === 'PUT') {
-        
+        // console.log('HERE');
+        // res.setHeader('Content-Length', '12');
+
+        // console.log(req.headers);
+        req.on('data', chunk => {
+          // console.log(`Data chunk available: ${chunk}`)
+        })
+        req.on('end', () => {
+          // console.log('HERE 2a');
+        });
+
+        res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
-        res.write('{"ok": "ok"}');
+        res.statusMessage = 'OK';
+        res.write(JSON.stringify({ok: 'ok'}));
         res.end();
 
-      } else if (req.url.endsWith('file')) {
+      } else if (req.url.endsWith('/file')) {
         // const strem =  fs.createReadStream(name);
         // strem.pipe(res);
-        res.write(fs.readFileSync(name))
-        res.end();
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.statusMessage = 'OK';
+        fs.createReadStream(name).pipe(res);
       } else {
         res.setHeader('Content-Type', 'application/json');
         res.write('{"ok": "ok"}');
@@ -58,22 +73,19 @@ describe('request', () => {
     expect(data).toStrictEqual({ok: 'ok'});
   });
 
-  it ('put formData', async () => {
+  it ('put formData as stream', async () => {
     const httpTransport = new HttpTransport();
     try {
       // const file = await (await httpTransport.request('GET', `http://127.0.0.1:${port}`)).blob();
 
-      // const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
+      const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
 
       const formData = new utils.FormData();
 
-      const obj = {test: 2};
-      const blob = new Blob([JSON.stringify(obj, null, 2)], {type : 'application/json'});
-      formData.append('test', 1);
-      formData.append('data', blob);
-      // formData.append('src', src, 'file.png');
+      formData.append('test', '1');
+      formData.append('src', src, 'file.txt');
+      formData.append('other', '2');
 
-      console.log('formData', formData);
       const data = await httpTransport.put(`http://127.0.0.1:${port}`, {body: formData});
 
       await new Promise(r => setTimeout(r, 50));

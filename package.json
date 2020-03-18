@@ -21,8 +21,12 @@
     "@typescript-eslint/eslint-plugin": "^2.16.0",
     "@typescript-eslint/parser": "^2.16.0",
     "eslint": "^6.8.0",
+    "form-data": "^3.0.0",
     "jest": "^24.9.0",
     "typescript": "^3.7.5"
+  },
+  "optionalDependencies": {
+    "form-data": "^3.0.0"
   },
   "author": "Volodymyr Iatsyshyn <viatsyshyn@gmail.com>",
   "license": "ISC"
