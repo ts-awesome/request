@@ -1,16 +1,34 @@
 const http = require('http');
 const {HttpTransport} = require('../dist/http.transport');
+const utils = require('../dist/utils');
+const fs = require('fs');
 
 describe('request', () => {
   let server;
   let port;
 
   beforeAll(done => {
+    const name = './' + Math.random().toString(36);
+    fs.writeFileSync(name, 'test stream');
+
+    const size = fs.statSync(name).size;
+
     server = http.createServer((req, res) => {
       if (req.method === 'POST') {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.write('{"ok": "ok", "message": "error"}');
+        res.end();
+      } else if (req.method === 'PUT') {
+        
+        res.setHeader('Content-Type', 'application/json');
+        res.write('{"ok": "ok"}');
+        res.end();
+
+      } else if (req.url.endsWith('file')) {
+        // const strem =  fs.createReadStream(name);
+        // strem.pipe(res);
+        res.write(fs.readFileSync(name))
         res.end();
       } else {
         res.setHeader('Content-Type', 'application/json');
@@ -25,6 +43,11 @@ describe('request', () => {
 
   afterAll(done => {
     server.close(done);
+    try {
+      fs.unlinkSync(name);
+    } finally {
+
+    }
   });
 
   it('fetches ok', async () => {
@@ -34,6 +57,35 @@ describe('request', () => {
 
     expect(data).toStrictEqual({ok: 'ok'});
   });
+
+  it ('put formData', async () => {
+    const httpTransport = new HttpTransport();
+    try {
+      // const file = await (await httpTransport.request('GET', `http://127.0.0.1:${port}`)).blob();
+
+      const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
+
+      const formData = new utils.FormData();
+
+      const obj = {test: 2};
+      const blob = new Blob([JSON.stringify(obj, null, 2)], {type : 'application/json'});
+      formData.append('test', 1);
+      formData.append('data', blob);
+      formData.append('src', src, 'file.png');
+
+      console.log('formData', formData);
+      const data = await httpTransport.put(`http://127.0.0.1:${port}`, {body: formData});
+
+      await new Promise(r => setTimeout(r, 50));
+      expect(JSON.stringify(data)).toBe(JSON.stringify({ok: 'ok'}));
+    } finally {
+        try {
+          // fs.unlinkSync(name);
+        } catch (e) {
+          // ignored
+        }
+      }
+  })
 
   it('fetches 500', async () => {
     const http = new HttpTransport();
