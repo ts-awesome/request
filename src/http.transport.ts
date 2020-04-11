@@ -18,7 +18,7 @@ import {ETagSymbol} from "./symbols";
 import reader from '@viatsyshyn/ts-model-reader';
 import fetch, {Headers, Response} from 'cross-fetch';
 import {createHash, Hash} from 'crypto';
-import {Readable} from "readable-stream";
+import {Readable} from "stream";
 import querystring from 'querystring';
 import {AbortController} from 'abort-controller/dist/abort-controller';
 

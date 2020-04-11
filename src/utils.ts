@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {Readable, Transform} from "readable-stream";
+import {Readable, Transform} from "stream";
 
 export interface IProgressStream<T> {
   on(event: 'end' | 'error', l: (...args: any[]) => any): IProgressStream<T>;
