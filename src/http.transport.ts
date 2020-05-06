@@ -57,7 +57,7 @@ export class HttpTransport implements IHttpTransport {
   }
 
   public async request<T>(method: HttpMethod, uri: string, options: Options & {timeout?: number} = {}): Promise<Response> {
-    const [_uri, _options] = this._requestParams(method, uri, options);
+    const [_uri, _options] = await this._requestParams(method, uri, options);
     const {timeout, signal} = options;
     if (timeout != null && signal) {
       throw new Error('Can not have timeout and signal options at the same time');
@@ -213,7 +213,7 @@ export class HttpTransport implements IHttpTransport {
     uri: string,
     {Model, progress, src, size, ...options}: Options & WithModel<ElementType<T>> & WithProgress & WithSource,
   ): Promise<T> {
-    const [_uri, _options] = this._requestParams(method, uri, options);
+    const [_uri, _options] = await this._requestParams(method, uri, options);
 
     if (!src) {
       throw new Error(`src is required`);
@@ -266,9 +266,9 @@ export class HttpTransport implements IHttpTransport {
     return result;
   }
 
-  private _requestParams(
+  private async _requestParams(
     method: HttpMethod, uri: string, options: Options = {}
-  ): [string, RequestInit] {
+  ): Promise<[string, RequestInit]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     method = method.toUpperCase() as any;
 
@@ -291,7 +291,18 @@ export class HttpTransport implements IHttpTransport {
 
     const query = querystring.stringify(qs);
 
-    if (typeof body === 'object') {
+    if (body && typeof body === 'object') {
+      // eslint-disable-next-line no-prototype-builtins
+      if (body.hasOwnProperty('hasKnownLength') && body.hasOwnProperty('getLength')) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // @ts-ignore
+        if (!body.hasKnownLength()) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+          // @ts-ignore
+          await new Promise((res, rej) => body.getLength((err, x) => err ? rej(err) : res(x) ))
+        }
+      }
+
       if (body instanceof FormData || body instanceof URLSearchParams) {
         encoding = typeof encoding === 'string' ? encoding : undefined;
       } else if (Object.getPrototypeOf(body).constructor === Object) {
