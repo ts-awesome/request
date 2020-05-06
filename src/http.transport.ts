@@ -293,13 +293,17 @@ export class HttpTransport implements IHttpTransport {
 
     if (body && typeof body === 'object') {
       // eslint-disable-next-line no-prototype-builtins
-      if (body.hasOwnProperty('hasKnownLength') && body.hasOwnProperty('getLength')) {
+      if (typeof body['hasKnownLength'] === 'function' && typeof body['getLength'] === 'function' && typeof body['getLengthSync'] === 'function') {
         // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
         // @ts-ignore
         if (!body.hasKnownLength()) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
           // @ts-ignore
-          await new Promise((res, rej) => body.getLength((err, x) => err ? rej(err) : res(x) ))
+          headers.set('Content-Length', await new Promise((res, rej) => body.getLength((err, x) => err ? rej(err) : res(x) )));
+        } else {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+          // @ts-ignore
+          headers.set('Content-Length', body.getLengthSync());
         }
       }
 
