@@ -299,7 +299,10 @@ export class HttpTransport implements IHttpTransport {
         if (!body.hasKnownLength()) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
           // @ts-ignore
-          headers.set('Content-Length', await new Promise((res, rej) => body.getLength((err, x) => err ? rej(err) : res(x) )));
+          const length = await new Promise((res, rej) => body.getLength((err, x) => err ? rej(err) : res(x) ));
+          if (length) {
+            headers.set('Content-Length', '' + length);
+          }
         } else {
           // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
           // @ts-ignore
