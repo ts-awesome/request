@@ -21,6 +21,7 @@ import {createHash, Hash} from 'crypto';
 import {Readable} from "stream";
 import querystring from 'querystring';
 import {AbortController} from 'abort-controller/dist/abort-controller';
+import { ConnectionError } from "./connection.error";
 
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
@@ -80,6 +81,12 @@ export class HttpTransport implements IHttpTransport {
       })
 
     } catch (err) {
+
+      if (!err.statusCode) {
+        this.logger?.warn(`Api ${method.toUpperCase()} ${uri} connection failed: ${err.message || err}`);
+        throw new ConnectionError(uri);
+      }
+
       this.logger?.warn(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
       throw new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
     }
