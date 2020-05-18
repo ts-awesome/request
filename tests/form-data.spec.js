@@ -109,7 +109,9 @@ describe('request', () => {
         ? src.getLengthSync()
         : (await new Promise((r, e) => src.getLength((err, value) => err ? e(err) : r(value) )));
 
-      const r = await http.upload('PUT', `http://127.0.0.1:${port}`, {src, size, progress: {
+      const headers = src.getHeaders();
+
+      const r = await http.upload('PUT', `http://127.0.0.1:${port}`, {src, size, headers, progress: {
           next(v) { progress.push(v)},
           complete () {},
           error() {},
