@@ -2,11 +2,13 @@ const http = require('http');
 const {HttpTransport} = require('../dist/http.transport');
 const utils = require('../dist/utils');
 const fs = require('fs');
+const FormData = require('form-data');
 
 describe('request', () => {
   let server;
   let port;
   let name;
+  let progress;
 
   beforeAll(done => {
     name = './' + Math.random().toString(36);
@@ -56,6 +58,7 @@ describe('request', () => {
     server.listen(done);
 
     port = server.address().port;
+    progress = [];
   });
 
   afterAll(done => {
@@ -88,5 +91,42 @@ describe('request', () => {
           // ignored
         }
       }
+  })
+
+  it('uploads form-data', async () => {
+    const http = new HttpTransport();
+    const name = './' + Math.random().toString(36);
+
+    fs.writeFileSync(name, 'test stream');
+
+    try {
+      const src = new FormData();
+      src.append('other', 'value');
+      src.append('file', fs.createReadStream(name))
+      src.append('field', 'value');
+
+      const size = src.hasKnownLength()
+        ? src.getLengthSync()
+        : (await new Promise((r, e) => src.getLength((err, value) => err ? e(err) : r(value) )));
+
+      const r = await http.upload('PUT', `http://127.0.0.1:${port}`, {src, size, progress: {
+          next(v) { progress.push(v)},
+          complete () {},
+          error() {},
+        }});
+
+      expect(r).toStrictEqual({ok: 'ok'});
+
+      // console.log('progress', JSON.stringify(progress));
+    } catch (e) {
+      console.error(e);
+      throw e;
+    } finally {
+      try {
+        fs.unlinkSync(name);
+      } catch (e) {
+        // ignored
+      }
+    }
   })
 });
