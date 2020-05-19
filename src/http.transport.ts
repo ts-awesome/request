@@ -188,27 +188,29 @@ export class HttpTransport implements IHttpTransport {
       (stream.pipeTo ?? stream.pipe).call(stream, captureStream)
         .once('error', reject)
         .once('end', () => {
-          progress?.complete();
+          setTimeout(() => {
+            progress?.complete();
 
-          if (hash != null) {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const [, ...parts] = response.headers.get('Digest')!.split('=');
-            const expected = parts.join('=');
-            const computed = hash.digest('base64');
-            if (expected !== computed) {
-              reject(new RequestError(`Digest mismatch`, 'RequestError', 0, {
-                expected,
-                computed,
+            if (hash != null) {
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const [, ...parts] = response.headers.get('Digest')!.split('=');
+              const expected = parts.join('=');
+              const computed = hash.digest('base64');
+              if (expected !== computed) {
+                reject(new RequestError(`Digest mismatch`, 'RequestError', 0, {
+                  expected,
+                  computed,
+                }));
+              }
+            } else if (progressStream.total > progressStream.progressed) {
+              reject(new RequestError(`Broken connection`, 'RequestError', 0, {
+                total: progressStream.total,
+                progressed: progressStream.progressed,
               }));
             }
-          } else if (progressStream.total > progressStream.progressed) {
-            reject(new RequestError(`Broken connection`, 'RequestError', 0, {
-              total: progressStream.total,
-              progressed: progressStream.progressed,
-            }));
-          }
 
-          setImmediate(resolve);
+            setImmediate(resolve);
+          }, 100)
         })
         .pipe(progressStream)
         .pipe(dest);
