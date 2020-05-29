@@ -22,6 +22,7 @@ import {Readable} from "stream";
 import querystring from 'querystring';
 import {AbortController} from 'abort-controller/dist/abort-controller';
 import { ConnectionError } from "./connection.error";
+import { RedirectError } from "./redirect.error";
 
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
@@ -86,7 +87,6 @@ export class HttpTransport implements IHttpTransport {
         this.logger?.warn(`Api ${method.toUpperCase()} ${uri} connection failed: ${err.message || err}`);
         throw new ConnectionError(uri);
       }
-
       this.logger?.warn(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
       throw new Error(`Api ${method.toUpperCase()} ${uri} failed: ${err.message || err}`);
     }
@@ -402,6 +402,11 @@ export class HttpTransport implements IHttpTransport {
     this.logger?.warn(`Http ${method.toUpperCase()} ${uri} failed ${status}: ${statusText}\n${raw}`);
 
     const body = headers.get('Content-Type')?.startsWith('application/json') ? JSON.parse(raw) : raw;
+    const location = headers.get('Location');
+    if ((status >= 300 && status <= 308) && location) {
+      throw new RedirectError(raw, uri, status, location);
+    }
+ 
     this.resolveError(statusText, status, body);
     if (body && typeof body === 'object') {
       this.resolveError(statusText, status, body);
@@ -415,6 +420,7 @@ export class HttpTransport implements IHttpTransport {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async _readData(response: Response, Model: any): Promise<any> {
 
+    console.log('_readData', response.redirected, response.url, response.status);
     const contentType = response.headers.get('Content-Type') ?? '';
     if (!contentType.startsWith('application/json')) {
       return await response.text();

@@ -26,7 +26,7 @@ describe('request', () => {
 
         // console.log(req.headers);
         req.on('data', chunk => {
-          // console.log(`Data chunk available: ${chunk}`)
+          console.log(`Data chunk available: ${chunk}`);
         })
         req.on('end', () => {
           // console.log('HERE 2a');
@@ -78,4 +78,31 @@ describe('request', () => {
       expect(e.data).toStrictEqual({ok: 'ok'});
     }
   });
+
+  it ('put formData as stream', async () => {
+    const httpTransport = new HttpTransport();
+    try {
+      // const file = await (await httpTransport.request('GET', `http://127.0.0.1:${port}`)).blob();
+
+      const src = await httpTransport.stream('GET', `https://s3-eu-west-1.amazonaws.com/shuut-stage-content/87f1fa23-1cc8-414f-8196-4a85505ca52a-00001.png`);
+
+      const formData = new utils.FormData();
+
+      formData.append('test', '1');
+      formData.append('src', src, 'image.png');
+      formData.append('other', '2');
+
+      const data = await httpTransport.put(`http://127.0.0.1:${port}`, {body: formData});
+
+      await new Promise(r => setTimeout(r, 50));
+      expect(JSON.stringify(data)).toBe(JSON.stringify({ok: 'ok'}));
+    } finally {
+        try {
+          // fs.unlinkSync(name);
+        } catch (e) {
+          // ignored
+        }
+      }
+  })
+
 });
