@@ -1,4 +1,5 @@
 export {IHttpTransport, HttpMethod, TransferProgress} from './interfaces';
+export {HttpTransportBase} from './http.transport.base';
 export {HttpTransport} from './http.transport';
 export {RequestError} from './request.error';
 export {ConnectionError} from './connection.error';
