@@ -75,19 +75,19 @@ export interface WithDestination {
   dest: Writable;
 }
 
-export interface IHttpTransport {
-  get<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
-  post<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
-  put<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
-  patch<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
-  delete<T = unknown>(uri: string, options?: Options & WithModel<ElementType<T>>): Promise<T>;
-  head(uri: string, options?: Options): Promise<void>;
+export interface IHttpTransport<TOptions = Options, TResponse = Response> {
+  get<T = unknown>(uri: string, options?: TOptions & WithModel<ElementType<T>>): Promise<T>;
+  post<T = unknown>(uri: string, options?: TOptions & WithModel<ElementType<T>>): Promise<T>;
+  put<T = unknown>(uri: string, options?: TOptions & WithModel<ElementType<T>>): Promise<T>;
+  patch<T = unknown>(uri: string, options?: TOptions & WithModel<ElementType<T>>): Promise<T>;
+  delete<T = unknown>(uri: string, options?: TOptions & WithModel<ElementType<T>>): Promise<T>;
+  head(uri: string, options?: TOptions): Promise<void>;
 
-  request<T = unknown>(method: HttpMethod, uri: string, options?: Options): Promise<Response>;
+  request(method: HttpMethod, uri: string, options?: TOptions): Promise<TResponse>;
 
-  stream<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress): Promise<(Readable & {total: number}) | null>;
-  download<T = unknown>(method: HttpMethod, uri: string, options: Options & WithModel<ElementType<T>> & WithProgress & WithDestination): Promise<void>;
-  upload<T = unknown>(method: HttpMethod, uri: string, options: Omit<Options, 'body'> & WithModel<ElementType<T>> & WithProgress & WithSource): Promise<T>;
+  stream<T = unknown>(method: HttpMethod, uri: string, options: TOptions & WithModel<ElementType<T>> & WithProgress): Promise<(Readable & {total: number}) | null>;
+  download<T = unknown>(method: HttpMethod, uri: string, options: TOptions & WithModel<ElementType<T>> & WithProgress & WithDestination): Promise<void>;
+  upload<T = unknown>(method: HttpMethod, uri: string, options: Omit<TOptions, 'body'> & WithModel<ElementType<T>> & WithProgress & WithSource): Promise<T>;
 }
 
 export declare type TokenProvider = () => string | null | undefined;
