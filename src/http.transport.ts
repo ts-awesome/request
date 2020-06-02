@@ -1,8 +1,6 @@
 import {HttpTransportBase} from "./http.transport.base";
 import {ILogger, Options, TokenProvider} from "./interfaces";
 
-import fetch from 'cross-fetch';
-
 export abstract class HttpTransport extends HttpTransportBase<Options, Response> {
 
   protected constructor(
@@ -10,7 +8,7 @@ export abstract class HttpTransport extends HttpTransportBase<Options, Response>
     protected baseUrl?: string,
     protected authorization?: string | TokenProvider,
   ) {
-    super(fetch, logger, baseUrl, authorization);
+    super(require('cross-fetch').fetch, logger, baseUrl, authorization);
   }
 
 }
