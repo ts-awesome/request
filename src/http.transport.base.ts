@@ -425,8 +425,7 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async _readData(response: TResponse, Model: any): Promise<any> {
 
-    console.log('_readData', response.redirected, response.url, response.status);
-    const contentType = response.headers.get('Content-Type') ?? '';
+   const contentType = response.headers.get('Content-Type') ?? '';
     if (!contentType.startsWith('application/json')) {
       return await response.text();
     }

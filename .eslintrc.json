@@ -17,6 +17,7 @@
     "@typescript-eslint/eslint-plugin"
   ],
   "rules": {
+    "no-console": "error",
     "no-dupe-class-members": "off",
     "@typescript-eslint/interface-name-prefix": "off"
   }
