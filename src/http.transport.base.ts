@@ -464,6 +464,9 @@ function stringify<T>(x: T, space = 2): string {
   const cache = new Set();
   const replacer = (key, value): unknown => {
     if (typeof value === 'object' && value !== null) {
+      if (key === 'body' && typeof value === 'string') {
+        return value;
+      }
       if (key === 'body' && (typeof value.read === 'function' || typeof value.pipe === 'function')) {
         return `<${Object.getPrototypeOf(value)?.constructor?.name || 'stream'} size=${JSON.stringify(value.total ?? value.size)} headers=${JSON.stringify(value.headers ?? value.getHeaders?.())} httpVersion=${JSON.stringify(value.httpVersion)} />`;
       }
