@@ -365,7 +365,7 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
       uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
     }
 
-    this.logger?.debug('Http', method, uri, stringify(opts, null, 2));
+    this.logger?.debug('Http', method, uri, stringify(opts, 2));
 
     return [uri, opts];
   }
