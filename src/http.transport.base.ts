@@ -365,7 +365,7 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
       uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
     }
 
-    this.logger?.debug('Http', method, uri, JSON.stringify(opts, null, 2));
+    this.logger?.debug('Http', method, uri, stringify(opts, null, 2));
 
     return [uri, opts];
   }
@@ -416,10 +416,10 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
     if (body && typeof body === 'object') {
       this.resolveError(statusText, status, body);
       const {code: jsonCode = status, error: jsonError = statusText, ...rest} = body;
-      throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${jsonCode}: ${jsonError}${Object.keys(rest).length ? '\n' + JSON.stringify(rest) : ''}`)
+      throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${jsonCode}: ${jsonError}${Object.keys(rest).length ? '\n' + stringify(rest) : ''}`)
     }
 
-    throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${status}: ${statusText}\n${typeof raw === 'string' ? raw : JSON.stringify(raw)}`)
+    throw new Error(`Api ${method.toUpperCase()} ${uri} failed ${status}: ${statusText}\n${typeof raw === 'string' ? raw : stringify(raw)}`)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -457,4 +457,26 @@ function resolveEtagged(method: HttpMethod, {etag, eTagged}: Options): {[key: st
     result['If-Match'] = value.startsWith('"') ? value : JSON.stringify(value);
   }
   return result;
+}
+
+function stringify<T>(x: T, space = 2): string {
+  // Note: cache should not be re-used by repeated calls to JSON.stringify.
+  const cache = new Set();
+  const replacer = (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (key === 'body' && (typeof value.read === 'function' || typeof value.pipe === 'function')) {
+        return `<${Object.getPrototypeOf(value)?.constructor?.name ?? 'stream'} size=${JSON.stringify(value.total ?? value.size)} headers=${JSON.stringify(value.headers ?? value.getHeaders?.())} httpVersion=${JSON.stringify(value.httpVersion)} />`;
+      }
+      // Duplicate reference found, discard key
+      if (cache.has(value)) {
+        return `<posible-circular-ref/>`;
+      }
+
+      // Store value in our collection
+      cache.add(value);
+    }
+    return value;
+  };
+
+  return JSON.stringify(x, replacer, space);
 }

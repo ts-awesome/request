@@ -33,7 +33,7 @@ describe('upload', () => {
 
   it('uploads ok', async () => {
     const name = './' + Math.random().toString(36);
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
 
     fs.writeFileSync(name, 'test stream');
 
@@ -65,7 +65,7 @@ describe('upload', () => {
   });
 
   it('uploads 500', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
     const name = './' + Math.random().toString(36);
 
     fs.writeFileSync(name, 'test stream');

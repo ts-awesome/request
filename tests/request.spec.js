@@ -59,7 +59,7 @@ describe('request', () => {
   });
 
   it('fetches ok', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
 
     const data = await http.get( `http://127.0.0.1:${port}`);
 
@@ -67,7 +67,7 @@ describe('request', () => {
   });
 
   it('fetches 500', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
 
     try {
       await http.post(`http://127.0.0.1:${port}`);

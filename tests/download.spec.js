@@ -41,7 +41,7 @@ describe('download', () => {
 
   it('downloads ok', async () => {
     const name = './' + Math.random().toString(36);
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
 
     try {
       const dest = fs.createWriteStream(name);
@@ -61,7 +61,7 @@ describe('download', () => {
   });
 
   it('downloads 500', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
     const name = './' + Math.random().toString(36);
 
     const dest = fs.createWriteStream(name);
@@ -88,7 +88,7 @@ describe('download', () => {
   });
 
   it('downloads broken pdf', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
     const name = './' + Math.random().toString(36);
 
     const dest = fs.createWriteStream(name);
@@ -114,7 +114,7 @@ describe('download', () => {
   });
 
   it('downloads failed digest', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
     const name = './' + Math.random().toString(36);
 
     const dest = fs.createWriteStream(name);

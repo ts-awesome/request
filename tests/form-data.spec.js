@@ -71,7 +71,7 @@ describe('request', () => {
   });
 
   it ('put formData as stream', async () => {
-    const httpTransport = new HttpTransport();
+    const httpTransport = new HttpTransport(console);
     try {
       const src = await httpTransport.stream('GET', `http://127.0.0.1:${port}/file`);
 
@@ -94,7 +94,7 @@ describe('request', () => {
   })
 
   it('uploads form-data', async () => {
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
     const name = './' + Math.random().toString(36);
 
     fs.writeFileSync(name, 'test stream');

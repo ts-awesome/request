@@ -32,7 +32,7 @@ describe('download', () => {
 
   it('pipe ok', async () => {
     const name = './' + Math.random().toString(36);
-    const http = new HttpTransport();
+    const http = new HttpTransport(console);
 
     try {
       const src = await http.stream('GET', `http://127.0.0.1:${port}`);
