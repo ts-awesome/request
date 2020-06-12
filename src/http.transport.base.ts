@@ -365,7 +365,7 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
       uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
     }
 
-    this.logger?.debug('Http', method, uri, stringify(opts, 2));
+    this.logger?.debug('Http', method, uri, stringifyOptions(opts, 2));
 
     return [uri, opts];
   }
@@ -459,6 +459,14 @@ function resolveEtagged(method: HttpMethod, {etag, eTagged}: Options): {[key: st
   return result;
 }
 
+function strigifyTag(name: string, opts: Record<string, unknown> = {}): string {
+  const options = Object.entries(opts ?? {})
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join(' ');
+  return `<${name} ${options}/>`;
+}
+
 function stringify<T>(x: T, space = 2): string {
   // Note: cache should not be re-used by repeated calls to JSON.stringify.
   const cache = new Set();
@@ -467,12 +475,23 @@ function stringify<T>(x: T, space = 2): string {
       if (key === 'body' && typeof value === 'string') {
         return value;
       }
+      if (key === 'body' && value instanceof FormData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const formData: any = value;
+        return strigifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'form-data', {
+          size: formData.hasKnownLength?.() ? formData.getLengthSync?.() : null
+        });
+      }
       if (key === 'body' && (typeof value.read === 'function' || typeof value.pipe === 'function')) {
-        return `<${Object.getPrototypeOf(value)?.constructor?.name || 'stream'} size=${JSON.stringify(value.total ?? value.size)} headers=${JSON.stringify(value.headers ?? value.getHeaders?.())} httpVersion=${JSON.stringify(value.httpVersion)} />`;
+        return strigifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'stream', {
+          size: value.total ?? value.size,
+          headers: value.headers ?? value.getHeaders?.(),
+          'http-version': value.httpVersion
+        });
       }
       // Duplicate reference found, discard key
       if (cache.has(value)) {
-        return `<posible-circular-ref/>`;
+        return strigifyTag(`possible-circular-ref`);
       }
 
       // Store value in our collection
@@ -482,4 +501,15 @@ function stringify<T>(x: T, space = 2): string {
   };
 
   return JSON.stringify(x, replacer, space);
+}
+
+function stringifyOptions<T extends {method?: string; headers?: unknown}>(opts: T, spaces = 2): string {
+  // eslint-disable-next-line
+  const {method, headers, ...rest} = (opts as any) ?? {};
+  // const headers = JSON.parse(JSON.stringify(headers));
+  if (headers && Object.keys(headers).length > 0) {
+    rest.headers = headers;
+  }
+
+  return stringify(rest, spaces);
 }
