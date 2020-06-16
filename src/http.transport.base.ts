@@ -459,7 +459,7 @@ function resolveEtagged(method: HttpMethod, {etag, eTagged}: Options): {[key: st
   return result;
 }
 
-function strigifyTag(name: string, opts: Record<string, unknown> = {}): string {
+function stringifyTag(name: string, opts: Record<string, unknown> = {}): string {
   const options = Object.entries(opts ?? {})
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
@@ -475,15 +475,20 @@ function stringify<T>(x: T, space = 2): string {
       if (key === 'body' && typeof value === 'string') {
         return value;
       }
+      if (key === 'body' && value instanceof URLSearchParams) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const searchParams: any = value;
+        return searchParams.toString();
+      }
       if (key === 'body' && value instanceof FormData) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formData: any = value;
-        return strigifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'form-data', {
+        return stringifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'form-data', {
           size: formData.hasKnownLength?.() ? formData.getLengthSync?.() : null
         });
       }
       if (key === 'body' && (typeof value.read === 'function' || typeof value.pipe === 'function')) {
-        return strigifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'stream', {
+        return stringifyTag(Object.getPrototypeOf(value)?.constructor?.name || 'stream', {
           size: value.total ?? value.size,
           headers: value.headers ?? value.getHeaders?.(),
           'http-version': value.httpVersion
@@ -491,7 +496,7 @@ function stringify<T>(x: T, space = 2): string {
       }
       // Duplicate reference found, discard key
       if (cache.has(value)) {
-        return strigifyTag(`possible-circular-ref`);
+        return stringifyTag(`possible-circular-ref`);
       }
 
       // Store value in our collection
