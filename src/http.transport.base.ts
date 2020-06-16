@@ -506,9 +506,10 @@ function stringify<T>(x: T, space = 2): string {
 function stringifyOptions<T extends {method?: string; headers?: unknown}>(opts: T, spaces = 2): string {
   // eslint-disable-next-line
   const {method, headers, ...rest} = (opts as any) ?? {};
-  // const headers = JSON.parse(JSON.stringify(headers));
-  if (headers && Object.keys(headers).length > 0) {
-    rest.headers = headers;
+  const _headers = {};
+  headers?.forEach((value, key) => _headers[key] = value);
+  if (Object.keys(_headers).length > 0) {
+    rest.headers = _headers;
   }
 
   return stringify(rest, spaces);

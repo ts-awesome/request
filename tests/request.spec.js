@@ -59,7 +59,7 @@ describe('request', () => {
   });
 
   it('fetches ok', async () => {
-    const http = new HttpTransport(console);
+    const http = new HttpTransport(console, undefined, 'Bearer 123');
 
     const data = await http.get( `http://127.0.0.1:${port}`);
 
