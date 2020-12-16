@@ -1,5 +1,5 @@
 {
-  "name": "@viatsyshyn/ts-request",
+  "name": "@ts-awesome/request",
   "version": "0.0.0",
   "description": "TypeScript Http Request",
   "main": "dist/index.js",
@@ -27,5 +27,5 @@
     "form-data": "^3.0.0"
   },
   "author": "Volodymyr Iatsyshyn <viatsyshyn@gmail.com>",
-  "license": "ISC"
+  "license": "MIT"
 }
