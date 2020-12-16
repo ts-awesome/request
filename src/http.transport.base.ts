@@ -15,7 +15,7 @@ import {
   WithSource
 } from "./interfaces";
 import {ETagSymbol} from "./symbols";
-import reader from '@viatsyshyn/ts-model-reader';
+import reader from '@ts-awesome/model-reader';
 import {Headers, Response} from 'cross-fetch';
 import {createHash, Hash} from 'crypto';
 import {Readable} from "stream";
