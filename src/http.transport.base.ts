@@ -1,12 +1,14 @@
 import {CaptureStream, ProgressStream, FormData, URLSearchParams} from "./utils";
 import {RequestError} from "./request.error";
 import {
+  AsyncRequestSignatureProvider,
+  AsyncTokenProvider,
   ConstructorOf,
   ElementType,
   HttpMethod,
   IHttpTransport,
   ILogger,
-  Options,
+  Options, RequestSignatureProvider,
   TokenProvider,
   TransferProgress,
   WithDestination,
@@ -35,7 +37,8 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
     protected fetch: IFetchImpl,
     protected logger?: ILogger,
     protected baseUrl?: string,
-    protected authorization?: string | TokenProvider,
+    protected authorization?: string | TokenProvider | AsyncTokenProvider,
+    protected requestSignature?: string | RequestSignatureProvider | AsyncRequestSignatureProvider,
   ) {
   }
 
@@ -83,7 +86,8 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
           _options.signal = controller.signal;
         }
 
-        this.fetch(_uri, _options).then(resolve, reject);
+        const {fetch} = this;
+        fetch(_uri, _options).then(resolve, reject);
       })
 
     } catch (err) {
@@ -183,8 +187,8 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
       throw new RequestError('No stream', 'RequestError',0);
     }
 
-    if (typeof stream.pipe !== 'function') {
-      throw new Error (`Fetch body doesn't support pipe()`);
+    if (typeof stream.pipe !== 'function' && typeof stream.pipeTo !== 'function') {
+      throw new Error (`Fetch body doesn't support pipe() nor pipeTo()`);
     }
 
     progressStream.on('progress', (event: TransferProgress) => progress?.next(event));
@@ -265,9 +269,9 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
     return `${this.baseUrl}${uri.startsWith('/') ? '' : '/'}${uri}`;
   }
 
-  protected resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Record<string, string> {
+  protected async resolveHeaders(method: HttpMethod, uri: string, headers: Record<string, string> = {}): Promise<Record<string, string>> {
 
-    const Authorization = typeof this.authorization === 'function' ? this.authorization() : this.authorization;
+    const Authorization = typeof this.authorization === 'function' ? await this.authorization() : this.authorization;
 
     const auth = Authorization ? { Authorization } : undefined;
     const merged = {...auth, ...headers};
@@ -297,7 +301,7 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
 
     const headers = new Headers({
       ...resolveEtagged(method, options),
-      ...this.resolveHeaders(method, uri, plain),
+      ...await this.resolveHeaders(method, uri, plain),
     });
 
     // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
@@ -363,6 +367,16 @@ export class HttpTransportBase<TOptions extends Options, TResponse extends Respo
 
     if (!/^https?:\/\//gi.test(uri) && !uri.startsWith('data:')) {
       uri = this.resolveRelativeUrl(method, uri) + (query ? '?' + query : '');
+    }
+
+    {
+      const {requestSignature} = this;
+      {
+        const signature = typeof requestSignature === 'function' ? await requestSignature(opts) : requestSignature;
+        if (signature != null) {
+          headers.set('Signature', signature);
+        }
+      }
     }
 
     this.logger?.debug('Http', method, uri, stringifyOptions(opts, 2));

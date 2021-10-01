@@ -91,3 +91,7 @@ export interface IHttpTransport<TOptions = Options, TResponse = Response> {
 }
 
 export declare type TokenProvider = () => string | null | undefined;
+export declare type AsyncTokenProvider = () => Promise<string | null | undefined>;
+
+export declare type RequestSignatureProvider = (request: RequestInit) => string | null | undefined;
+export declare type AsyncRequestSignatureProvider = (request: RequestInit) => Promise<string | null | undefined>;
