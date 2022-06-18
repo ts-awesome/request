@@ -64,3 +64,8 @@ container.bind<IHttpTransport>(HttpTransportSymbol)
   .whenNamed('api');
 
 ```
+
+# License
+May be freely distributed under the [MIT license](https://opensource.org/licenses/MIT).
+
+Copyright (c) 2022 Volodymyr Iatsyshyn and other contributors
