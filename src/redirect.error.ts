@@ -5,7 +5,7 @@ export class RedirectError extends Error {
   constructor(message: string, url: string, statusCode: number, location: string) {
     super();
     this.name = 'RedirectError';
-    this.message = `Redirect occured from ${url} to ${location}. Message: ${message}`;
+    this.message = `Redirect occurred from ${url} to ${location}. Message: ${message}`;
     this.url = url;
     this.location = location;
     this.statusCode = statusCode;

@@ -24,15 +24,18 @@ export interface Stringifier {
   <T>(x: T): string;
 }
 
-export interface Enconding {
+export interface Encoding {
   readonly encoding?: string;
   stringify<T>(x: T): string;
 }
 
+/** @deprecated use Encoding */
+export type Enconding = Encoding;
+
 export interface Options {
   qs?: Record<string, string | number | boolean>;
   headers?: Record<string, string>;
-  encoding?: Enconding | Stringifier | string;
+  encoding?: Encoding | Stringifier | string;
   timeout?: number;
   etag?: string;
   eTagged?: {[ETagSymbol]?: string};

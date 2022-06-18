@@ -1,9 +1,13 @@
 {
   "name": "@ts-awesome/request",
   "version": "0.0.0",
-  "description": "TypeScript Http Request",
+  "description": "TypeScript friendly node-fetch wrapper with model reader",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ts-awesome/request"
+  },
   "scripts": {
     "build": "tsc",
     "lint": "eslint \"src/**/*.ts\"",
